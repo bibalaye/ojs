@@ -1,0 +1,66 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Premium Submission Helper Plugin 1.0.0\n"
+"POT-Creation-Date: 2024-01-01 12:00+0000\n"
+"PO-Revision-Date: 2024-01-01 12:00+0000\n"
+"Last-Translator: Santaane AI Team\n"
+"Language-Team: English\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en_US\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "plugins.generic.premiumSubmissionHelper.displayName"
+msgstr "Premium Submission Helper - Santaane AI Analysis"
+
+msgid "plugins.generic.premiumSubmissionHelper.description"
+msgstr "OJS plugin with Santaane AI analysis integration to improve academic submission quality."
+
+msgid "plugins.generic.premiumSubmissionHelper.settings.description"
+msgstr "This plugin adds an AI analysis button in the submission form to automatically analyze abstracts and provide improvement suggestions."
+
+msgid "plugins.generic.premiumSubmissionHelper.aiAnalysis"
+msgstr "Santaane AI Analysis"
+
+msgid "plugins.generic.premiumSubmissionHelper.aiAnalysis.description"
+msgstr "Analyze your abstract with Santaane artificial intelligence to get improvement suggestions and optimize your submission."
+
+msgid "plugins.generic.premiumSubmissionHelper.launchAnalysis"
+msgstr "🚀 Launch Analysis"
+
+msgid "plugins.generic.premiumSubmissionHelper.analysisInProgress"
+msgstr "🔄 Analysis in progress..."
+
+msgid "plugins.generic.premiumSubmissionHelper.analysisResults"
+msgstr "📊 Analysis Results"
+
+msgid "plugins.generic.premiumSubmissionHelper.statistics"
+msgstr "Statistics"
+
+msgid "plugins.generic.premiumSubmissionHelper.wordCount"
+msgstr "Words"
+
+msgid "plugins.generic.premiumSubmissionHelper.characterCount"
+msgstr "Characters"
+
+msgid "plugins.generic.premiumSubmissionHelper.improvementSuggestions"
+msgstr "Improvement Suggestions"
+
+msgid "plugins.generic.premiumSubmissionHelper.noAbstractFound"
+msgstr "⚠️ No abstract found. Please first enter your abstract in the corresponding field."
+
+msgid "plugins.generic.premiumSubmissionHelper.abstractTooShort"
+msgstr "📝 Your abstract seems short. Consider adding more details about methodology and results."
+
+msgid "plugins.generic.premiumSubmissionHelper.abstractTooLong"
+msgstr "📏 Your abstract is long. Try to condense it while keeping essential points."
+
+msgid "plugins.generic.premiumSubmissionHelper.avoidFirstPerson"
+msgstr "👥 Avoid using first person plural. Use a more academic style."
+
+msgid "plugins.generic.premiumSubmissionHelper.avoidExclamation"
+msgstr "🎯 Avoid exclamation points in an academic abstract."
+
+msgid "plugins.generic.premiumSubmissionHelper.abstractWellStructured"
+msgstr "✅ Your abstract seems well structured!"

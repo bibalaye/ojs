@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE version SYSTEM "../../../lib/pkp/dtd/pluginVersion.dtd">
+
+<!--
+  * plugins/generic/premiumSubmissionHelper/version.xml
+  *
+  * Copyright (c) 2025 Premium Submission Helper Plugin
+  * Distributed under the GNU GPL v3. For full terms see the file docs/COPYING.
+  *
+  * Plugin version information.
+  -->
+<version>
+	<application>premiumSubmissionHelper</application>
+	<type>plugins.generic</type>
+	<release>1.0.0.0</release>
+	<date>2025-08-23</date>
+	<lazy-load>1</lazy-load>
+	<class>PremiumSubmissionHelperPlugin</class>
+</version>

@@ -1,0 +1,57 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-08-22 00:20+0000\n"
+"PO-Revision-Date: 2024-08-22 00:20+0000\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "plugins.generic.premiumSubmissionHelper.displayName"
+msgstr "Premium Submission Helper"
+
+msgid "plugins.generic.premiumSubmissionHelper.description"
+msgstr "OJS plugin with Santaane AI analysis integration for text analysis and improvement suggestions."
+
+msgid "plugins.generic.premiumSubmissionHelper.settings.description"
+msgstr "This plugin provides Santaane AI analysis functionality for submission forms. No additional configuration required."
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.button"
+msgstr "Launch Santaane AI Analysis"
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.help"
+msgstr "Analyze your text with Santaane artificial intelligence to get improvement suggestions."
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.loading"
+msgstr "Santaane AI is analyzing your text..."
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.error"
+msgstr "An error occurred during analysis. Please try again."
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.noText"
+msgstr "Please enter text to analyze (abstract, title, etc.) before launching the analysis."
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.success"
+msgstr "Analysis completed successfully"
+
+msgid "plugins.generic.premiumSubmissionHelper.button.analyze"
+msgstr "Run Santaane AI Analysis"
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.title"
+msgstr "Santaane Premium AI Analysis"
+
+msgid "plugins.generic.premiumSubmissionHelper.loading"
+msgstr "Analysis in progress..."
+
+msgid "plugins.generic.premiumSubmissionHelper.error.noAbstract"
+msgstr "Please enter an abstract before running the analysis."
+
+msgid "plugins.generic.premiumSubmissionHelper.error.notPremium"
+msgstr "Premium access required for this feature."
+
+msgid "plugins.generic.premiumSubmissionHelper.error.general"
+msgstr "An error occurred during analysis."

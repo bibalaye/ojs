@@ -1,0 +1,426 @@
+/* Premium Submission Helper Plugin - Styles */
+
+/* AI Analysis Container - Intégration avec OJS */
+.pkpFormField--aiAnalysis {
+    margin-top: 1rem;
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+
+/* Label du champ IA */
+.pkpFormField--aiAnalysis .pkpFormField__label {
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+    margin-bottom: 0.5rem;
+}
+
+/* Description du champ IA */
+.pkpFormField--aiAnalysis .pkpFormField__description {
+    color: #666;
+    font-size: 13px;
+    line-height: 1.4;
+    margin-bottom: 1rem;
+}
+
+/* Bouton d'analyse IA */
+.santaane-ai-button {
+    background: linear-gradient(135deg, #007cba 0%, #005a87 100%);
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 124, 186, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.santaane-ai-button:hover {
+    background: linear-gradient(135deg, #005a87 0%, #004a6f 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 124, 186, 0.3);
+}
+
+.santaane-ai-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 124, 186, 0.2);
+}
+
+.santaane-ai-button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Animation de chargement */
+.santaane-ai-button:disabled::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border: 2px solid transparent;
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Zone des résultats - Design OJS */
+.santaane-ai-results {
+    margin-top: 1rem;
+    overflow: hidden;
+}
+
+.santaane-ai-results .pkpFormField__description {
+    background: #f8f9fa;
+    border-radius: 6px;
+    border-left: 4px solid #007cba;
+    padding: 1.25rem;
+    margin: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.santaane-ai-results .pkpFormField__description:hover {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Titre des résultats */
+.santaane-ai-results h4 {
+    color: #333;
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 1rem 0;
+    padding: 0;
+}
+
+/* Statistiques */
+.santaane-ai-results strong {
+    color: #555;
+    font-weight: 600;
+}
+
+.santaane-ai-results span {
+    color: #666;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* Suggestions d'amélioration */
+.santaane-ai-results .suggestions {
+    margin: 1rem 0;
+}
+
+/* Footer des résultats */
+.santaane-ai-results .footer {
+    font-size: 12px;
+    color: #888;
+    font-style: italic;
+    border-top: 1px solid #e9ecef;
+    padding-top: 0.75rem;
+    margin-top: 1rem;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .pkpFormField--aiAnalysis {
+        margin-top: 0.75rem;
+    }
+    
+    .santaane-ai-button {
+        width: 100%;
+        padding: 12px 20px;
+        font-size: 16px;
+    }
+    
+    .santaane-ai-results .pkpFormField__description {
+        padding: 1rem;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .pkpFormField--aiAnalysis .pkpFormField__label {
+        color: #e0e0e0;
+    }
+    
+    .pkpFormField--aiAnalysis .pkpFormField__description {
+        color: #b0b0b0;
+    }
+    
+    .santaane-ai-results .pkpFormField__description {
+        background: #2a2a2a;
+        border-left-color: #4a9eff;
+    }
+    
+    .santaane-ai-results h4 {
+        color: #e0e0e0;
+    }
+    
+    .santaane-ai-results strong {
+        color: #d0d0d0;
+    }
+    
+    .santaane-ai-results span {
+        color: #b0b0b0;
+    }
+    
+    .santaane-ai-results .footer {
+        color: #888;
+        border-top-color: #444;
+    }
+}
+
+/* Checkbox personnalisée pour afficher/masquer les résultats */
+.pkpFormField--aiAnalysis input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #007cba;
+    border-radius: 3px;
+    background: white;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.pkpFormField--aiAnalysis input[type="checkbox"]:checked {
+    background: #007cba;
+    border-color: #007cba;
+}
+
+.pkpFormField--aiAnalysis input[type="checkbox"]:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.pkpFormField--aiAnalysis input[type="checkbox"]:hover {
+    border-color: #005a87;
+    box-shadow: 0 0 0 2px rgba(0, 124, 186, 0.2);
+}
+
+.pkpFormField--aiAnalysis input[type="checkbox"]:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 124, 186, 0.3);
+}
+
+/* Label de la checkbox */
+.pkpFormField--aiAnalysis label[for="show-results-checkbox"] {
+    user-select: none;
+    transition: color 0.2s ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #555;
+    margin: 15px 0;
+}
+
+.pkpFormField--aiAnalysis label[for="show-results-checkbox"]:hover {
+    color: #007cba;
+}
+
+/* Messages de succès et d'erreur */
+.santaane-ai-results .pkpFormField__description.success {
+    background: #d4edda;
+    border-left-color: #28a745;
+    color: #155724;
+}
+
+.santaane-ai-results .pkpFormField__description.info {
+    background: #d1ecf1;
+    border-left-color: #17a2b8;
+    color: #0c5460;
+}
+
+.santaane-ai-results .pkpFormField__description.warning {
+    background: #fff3cd;
+    border-left-color: #ffc107;
+    color: #856404;
+}
+
+/* Animation d'apparition/disparition des résultats */
+.santaane-ai-results {
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.santaane-ai-results[style*="display: none"] {
+    max-height: 0;
+    opacity: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.santaane-ai-results[style*="display: block"] {
+    max-height: 1000px;
+    opacity: 1;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+        max-height: 0;
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+        max-height: 1000px;
+    }
+}
+
+/* Message d'incitation Premium */
+.premium-upgrade-message {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.premium-upgrade-message::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #ffd700 0%, #ffed4e 50%, #ffd700 100%);
+}
+
+.upgrade-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    animation: sparkle 2s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    50% { transform: scale(1.1) rotate(5deg); }
+}
+
+.upgrade-content h4 {
+    color: #495057;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 0 0.75rem 0;
+}
+
+.upgrade-content p {
+    color: #6c757d;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin: 0 0 1.25rem 0;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.upgrade-benefits {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    align-items: center;
+}
+
+.benefit {
+    background: rgba(255, 215, 0, 0.1);
+    color: #856404;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.benefit:hover {
+    background: rgba(255, 215, 0, 0.2);
+    transform: translateY(-1px);
+}
+
+.upgrade-button {
+    background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+    border: none;
+    color: #856404;
+    padding: 0.75rem 1.5rem;
+    border-radius: 25px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+    text-transform: none;
+}
+
+.upgrade-button:hover {
+    background: linear-gradient(135deg, #ffed4e 0%, #ffd700 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+}
+
+.upgrade-button:active {
+    transform: translateY(0);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .upgrade-benefits {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .benefit {
+        width: 100%;
+        max-width: 300px;
+        text-align: center;
+    }
+    
+    .upgrade-content p {
+        max-width: 100%;
+    }
+}
+
+/* Animation d'entrée */
+.premium-upgrade-message {
+    animation: slideInUp 0.5s ease-out;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

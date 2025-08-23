@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plugin PUBLIC "-//PKP//OJS Plugin 3.3//EN" "http://pkp.sfu.ca/ojs/dtd/plugin-3.3.dtd">
+<plugin>
+    <id>premiumSubmissionHelper</id>
+    <name>Premium Submission Helper Plugin</name>
+    <description>Plugin OJS avec intégration de l'analyse IA Santaane pour l'analyse de texte et les suggestions d'amélioration.</description>
+    <version>1.0.0</version>
+    <class>PremiumSubmissionHelperPlugin</class>
+    <settings>
+        <setting key="premiumRoles" type="object">
+            <label>Rôles Premium</label>
+            <description>Définir quels rôles OJS ont accès aux fonctionnalités premium</description>
+            <default>
+                <array>
+                    <item key="siteAdmin">true</item>
+                    <item key="manager">true</item>
+                    <item key="subEditor">true</item>
+                    <item key="assistant">true</item>
+                    <item key="subscriptionManager">true</item>
+                    <item key="author">false</item>
+                    <item key="reviewer">false</item>
+                    <item key="reader">false</item>
+                </array>
+            </default>
+        </setting>
+        <setting key="premiumGroups" type="object">
+            <label>Groupes d'Utilisateurs Premium</label>
+            <description>Noms des groupes d'utilisateurs qui ont accès premium (doit contenir les mots-clés)</description>
+            <default>
+                <array>
+                    <item key="keywords">premium,vip,pro,advanced</item>
+                    <item key="caseSensitive">false</item>
+                </array>
+            </default>
+        </setting>
+        <setting key="enableCustomGroups" type="boolean">
+            <label>Activer les Groupes Personnalisés</label>
+            <description>Permettre la création de groupes d'utilisateurs premium personnalisés</description>
+            <default>true</default>
+        </setting>
+        <setting key="logAccessChecks" type="boolean">
+            <label>Journaliser les Vérifications d'Accès</label>
+            <description>Enregistrer les vérifications d'accès premium dans les logs (développement uniquement)</description>
+            <default>false</default>
+        </setting>
+    </settings>
+</plugin>
+

@@ -1,0 +1,138 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-08-22 00:20+0000\n"
+"PO-Revision-Date: 2024-08-22 00:20+0000\n"
+"Last-Translator: \n"
+"Language-Team: French\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "plugins.generic.premiumSubmissionHelper.displayName"
+msgstr "Assistant de Soumission Premium"
+
+msgid "plugins.generic.premiumSubmissionHelper.description"
+msgstr "Plugin OJS avec intégration de l'analyse IA Santaane pour l'analyse de texte et les suggestions d'amélioration."
+
+msgid "plugins.generic.premiumSubmissionHelper.settings.description"
+msgstr "Ce plugin fournit la fonctionnalité d'analyse IA Santaane pour les formulaires de soumission. Aucune configuration supplémentaire requise."
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.button"
+msgstr "Lancer l'analyse IA Santaane"
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.help"
+msgstr "Analysez votre texte avec l'intelligence artificielle Santaane pour obtenir des suggestions d'amélioration."
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.loading"
+msgstr "Santaane IA analyse votre texte..."
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.error"
+msgstr "Une erreur s'est produite lors de l'analyse. Veuillez réessayer."
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.noText"
+msgstr "Veuillez saisir un texte à analyser (résumé, titre, etc.) avant de lancer l'analyse."
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.success"
+msgstr "Analyse terminée avec succès"
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.error.notPremium"
+msgstr "Cette fonctionnalité est réservée aux utilisateurs premium"
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.error.tooShort"
+msgstr "Le résumé doit contenir au moins 50 caractères"
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.error.failed"
+msgstr "Erreur lors de l'analyse. Veuillez réessayer"
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.title"
+msgstr "Analyse IA Santaane"
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.scores"
+msgstr "Scores d'Évaluation"
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.clarity"
+msgstr "Clarté"
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.structure"
+msgstr "Structure"
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.complexity"
+msgstr "Simplicité"
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.overall"
+msgstr "Score Global"
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.statistics"
+msgstr "Statistiques"
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.strengths"
+msgstr "Points Forts"
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.improvements"
+msgstr "Suggestions d'Amélioration"
+
+msgid "plugins.generic.premiumSubmissionHelper.analysis.keywords"
+msgstr "Mots-clés Détectés"
+
+# Nouveaux messages pour l'incitation premium
+msgid "plugins.generic.premiumSubmissionHelper.premium.title"
+msgstr "Fonctionnalité Premium"
+
+msgid "plugins.generic.premiumSubmissionHelper.premium.description"
+msgstr "Accédez à l'analyse IA Santaane pour améliorer vos soumissions avec des suggestions intelligentes et des évaluations détaillées."
+
+msgid "plugins.generic.premiumSubmissionHelper.premium.benefit.scores"
+msgstr "📊 Scores d'évaluation"
+
+msgid "plugins.generic.premiumSubmissionHelper.premium.benefit.suggestions"
+msgstr "💡 Suggestions d'amélioration"
+
+msgid "plugins.generic.premiumSubmissionHelper.premium.benefit.structure"
+msgstr "🎯 Analyse de structure"
+
+msgid "plugins.generic.premiumSubmissionHelper.premium.button"
+msgstr "💎 Découvrir Premium"
+
+msgid "plugins.generic.premiumSubmissionHelper.premium.upgrade.info"
+msgstr "🌟 Passez à Premium pour débloquer l'analyse IA Santaane !\n\nAvec votre abonnement Premium, vous bénéficierez de :\n• Analyse intelligente de vos résumés\n• Scores d'évaluation détaillés\n• Suggestions d'amélioration personnalisées\n• Analyse de structure et de clarté\n\nContactez votre administrateur pour plus d'informations."
+
+# Traductions pour les rôles premium
+msgid "user.role.vip"
+msgstr "Utilisateur VIP"
+
+msgid "user.role.premium"
+msgstr "Utilisateur Premium"
+
+msgid "user.role.advanced"
+msgstr "Utilisateur Avancé"
+
+msgid "user.role.elite"
+msgstr "Utilisateur Élite"
+
+msgid "user.role.abbrev.vip"
+msgstr "VIP"
+
+msgid "user.role.abbrev.premium"
+msgstr "PRM"
+
+msgid "user.role.abbrev.advanced"
+msgstr "AVC"
+
+msgid "user.role.abbrev.elite"
+msgstr "ELT"
+
+# Descriptions des rôles premium
+msgid "user.role.description.vip"
+msgstr "Utilisateur VIP avec accès premium de base aux fonctionnalités avancées"
+
+msgid "user.role.description.premium"
+msgstr "Utilisateur Premium avec accès étendu aux fonctionnalités avancées"
+
+msgid "user.role.description.advanced"
+msgstr "Utilisateur Avancé avec accès premium avancé aux fonctionnalités"
+
+msgid "user.role.description.elite"
+msgstr "Utilisateur Élite avec accès premium maximum aux fonctionnalités"

@@ -1,0 +1,66 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Premium Submission Helper Plugin 1.0.0\n"
+"POT-Creation-Date: 2024-01-01 12:00+0000\n"
+"PO-Revision-Date: 2024-01-01 12:00+0000\n"
+"Last-Translator: Santaane AI Team\n"
+"Language-Team: French\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: fr_FR\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "plugins.generic.premiumSubmissionHelper.displayName"
+msgstr "Premium Submission Helper - Analyse IA Santaane"
+
+msgid "plugins.generic.premiumSubmissionHelper.description"
+msgstr "Plugin OJS avec intégration d'analyse IA Santaane pour améliorer la qualité des soumissions académiques."
+
+msgid "plugins.generic.premiumSubmissionHelper.settings.description"
+msgstr "Ce plugin ajoute un bouton d'analyse IA dans le formulaire de soumission pour analyser automatiquement les résumés et fournir des suggestions d'amélioration."
+
+msgid "plugins.generic.premiumSubmissionHelper.aiAnalysis"
+msgstr "Analyse IA Santaane"
+
+msgid "plugins.generic.premiumSubmissionHelper.aiAnalysis.description"
+msgstr "Analysez votre résumé avec l'intelligence artificielle Santaane pour obtenir des suggestions d'amélioration et optimiser votre soumission."
+
+msgid "plugins.generic.premiumSubmissionHelper.launchAnalysis"
+msgstr "🚀 Lancer l'analyse"
+
+msgid "plugins.generic.premiumSubmissionHelper.analysisInProgress"
+msgstr "🔄 Analyse en cours..."
+
+msgid "plugins.generic.premiumSubmissionHelper.analysisResults"
+msgstr "📊 Résultats de l'analyse"
+
+msgid "plugins.generic.premiumSubmissionHelper.statistics"
+msgstr "Statistiques"
+
+msgid "plugins.generic.premiumSubmissionHelper.wordCount"
+msgstr "Mots"
+
+msgid "plugins.generic.premiumSubmissionHelper.characterCount"
+msgstr "Caractères"
+
+msgid "plugins.generic.premiumSubmissionHelper.improvementSuggestions"
+msgstr "Suggestions d'amélioration"
+
+msgid "plugins.generic.premiumSubmissionHelper.noAbstractFound"
+msgstr "⚠️ Aucun résumé trouvé. Veuillez d'abord saisir votre résumé dans le champ correspondant."
+
+msgid "plugins.generic.premiumSubmissionHelper.abstractTooShort"
+msgstr "📝 Votre résumé semble court. Considérez l'ajouter plus de détails sur la méthodologie et les résultats."
+
+msgid "plugins.generic.premiumSubmissionHelper.abstractTooLong"
+msgstr "📏 Votre résumé est long. Essayez de le condenser en gardant les points essentiels."
+
+msgid "plugins.generic.premiumSubmissionHelper.avoidFirstPerson"
+msgstr "👥 Évitez l'utilisation de la première personne du pluriel. Utilisez un style plus académique."
+
+msgid "plugins.generic.premiumSubmissionHelper.avoidExclamation"
+msgstr "🎯 Évitez les points d'exclamation dans un résumé académique."
+
+msgid "plugins.generic.premiumSubmissionHelper.abstractWellStructured"
+msgstr "✅ Votre résumé semble bien structuré !"
