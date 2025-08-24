@@ -615,16 +615,9 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
                 return new JSONMessage(
                     true,
                     '<p>' . __('plugins.generic.premiumSubmissionHelper.settings.description')
-                     . '</p>'
+                        . '</p>'
                 );
         }
         return parent::manage($args, $request);
     }
-}
-
-if (!PKP_STRICT_MODE) {
-    class_alias(
-        '\APP\plugins\generic\premiumSubmissionHelper\PremiumSubmissionHelperPlugin',
-        '\PremiumSubmissionHelperPlugin'
-    );
 }
