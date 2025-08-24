@@ -1,17 +1,41 @@
 name: Deploy OJS Plugin
 
 on:
-  workflow_dispatch:   # Déclenche manuellement depuis GitHub Actions
+  push:
+    branches:
+      - feat/premium-helper-plugin-abiboulaye       # Déploie uniquement sur la branche (actuellement feat/premium-helper-plugin-abiboulaye) 
+  workflow_dispatch:  # Permet de lancer manuellement depuis GitHub Actions
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    needs: ci
+    if: success()
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Clean old plugin on server
+      - name: Prepare temp plugin dir
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            rm -rf /var/www/html/ojs/plugins/generic/premiumSubmissionHelper_tmp
+            mkdir -p /var/www/html/ojs/plugins/generic/premiumSubmissionHelper_tmp
+
+      - name: Upload plugin files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "plugins/generic/premiumSubmissionHelper/*"
+          target: "/var/www/html/ojs/plugins/generic/premiumSubmissionHelper_tmp"
+
+      - name: Activate new plugin version
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -19,13 +43,6 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             rm -rf /var/www/html/ojs/plugins/generic/premiumSubmissionHelper
-            mkdir -p /var/www/html/ojs/plugins/generic/premiumSubmissionHelper
-
-      - name: Upload plugin files
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "plugins/generic/premiumSubmissionHelper/*"
-          target: "/var/www/html/ojs/plugins/generic/premiumSubmissionHelper"
+            mv /var/www/html/ojs/plugins/generic/premiumSubmissionHelper_tmp \
+               /var/www/html/ojs/plugins/generic/premiumSubmissionHelper
+            ls -la /var/www/html/ojs/plugins/generic/premiumSubmissionHelper
