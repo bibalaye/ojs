@@ -1,0 +1,20 @@
+[33m4b58a36d8b[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeat/premium-helper-plugin-abiboulaye[m[33m, [m[1;31morigin/feat/premium-helper-plugin-abiboulaye[m[33m)[m Update deploy.yml fixe name ci
+[33m20506fe213[m Update deploy.yml
+[33m3e09c15c80[m Amélioration du workflow de déploiement : ajout d'un déclencheur sur la branche spécifique, préparation d'un répertoire temporaire pour le plugin, et activation de la nouvelle version après le déploiement. Mise à jour de la version de l'action SCP utilisée.
+[33m9d678d5015[m fix bugs code styles
+[33m61e5a2e700[m fix code styles
+[33m82b23e504f[m fix code style
+[33m9421556547[m add ci/cd workflow
+[33m9105b6ddad[m feat: Implémentation du contrôle d'accès Premium pour l'analyse IA
+[33mcf53de1c27[m Ajout du plan pour le plugin Premium Submission Helper
+[33me3f67306a9[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m Plugin submodule updates
+[33m74f484132e[m Submodule updates
+[33mcdd0e22459[m Submodule update
+[33m1c6984b7e9[m Submodule update
+[33m2ce1684042[m pkp/pkp-lib#8920 Add support for searching by keyword
+[33m89680bf32a[m Submodule update
+[33mf78029e2d7[m Merge pull request #5002 from Hafsa-Naeem/i11389_main_fix
+[33m1cbca854d1[m pkp/pkp-lib#11389 Submodule update ##Hafsa-Naeem/i11389_main_fix
+[33mf3784f8307[m Submodule update
+[33m27351d8a7a[m pkp/pkp-lib#11540 plain language support added in publication
+[33m6fe6cd37a0[m pkp/pkp-lib#11683 fix schedule task frequency
