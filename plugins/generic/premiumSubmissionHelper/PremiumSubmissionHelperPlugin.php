@@ -607,7 +607,7 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
      * @copydoc Plugin::manage()
      */
     public function manage(
-        array $args,
+        $args,
         $request
     ) {
         switch ($request->getUserVar('verb')) {
