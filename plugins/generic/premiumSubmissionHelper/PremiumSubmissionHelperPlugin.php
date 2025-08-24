@@ -4,28 +4,31 @@
  * @file plugins/generic/premiumSubmissionHelper/PremiumSubmissionHelperPlugin.php
  *
  * Copyright (c) 2025 Premium Submission Helper Plugin
- * Distributed under the GNU GPL v3. For full terms see the file docs/COPYING.
+ * Distribué sous la licence GNU GPL v3. Pour les conditions complètes, voir le fichier docs/COPYING.
  *
  * @class PremiumSubmissionHelperPlugin
  *
  * @ingroup plugins_generic_premiumSubmissionHelper
  *
- * @brief OJS plugin with Santaane AI analysis integration
+ * @brief Plugin OJS avec intégration de l'analyse IA Santaane
  */
+
+// Ce fichier ne doit déclarer que des symboles (classes, fonctions, constantes, etc.)
+// et ne doit pas exécuter de logique ayant des effets de bord.
+// Toute logique avec effet de bord doit être déplacée dans un autre fichier (ex : index.php).
 
 namespace APP\plugins\generic\premiumSubmissionHelper;
 
 use APP\core\Application;
-use APP\template\TemplateManager;
+use Illuminate\Support\Facades\DB;
+use PKP\components\forms\publication\TitleAbstractForm;
 use PKP\core\JSONMessage;
+use PKP\facades\Locale;
 use PKP\linkAction\LinkAction;
 use PKP\linkAction\request\AjaxModal;
-use PKP\plugins\Hook;
-use PKP\components\forms\publication\TitleAbstractForm;
 use PKP\plugins\GenericPlugin;
-use PKP\facades\Locale;
+use PKP\plugins\Hook;
 use PKP\security\Role;
-use Illuminate\Support\Facades\DB;
 
 class PremiumSubmissionHelperPlugin extends GenericPlugin
 {
@@ -40,19 +43,19 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
         if (Application::isUnderMaintenance()) {
             return true;
         }
-        
+
         if ($success && $this->getEnabled($mainContextId)) {
             // Register hooks for form components
             Hook::add('Form::config::before', [$this, 'addAIAnalysisToForm']);
             Hook::add('Form::config::after', [$this, 'addAIAnalysisToForm']);
-            
+
             // Register template display hook for general injection
             Hook::add('TemplateManager::display', [$this, 'handleTemplateDisplay']);
-            
+
             // Initialize premium roles if they don't exist
             $this->initializePremiumRoles($mainContextId);
         }
-        
+
         return $success;
     }
 
@@ -82,7 +85,7 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
 
     /**
      * Initialize premium roles when the plugin is enabled
-     * 
+     *
      * @param int|null $contextId The context ID
      */
     private function initializePremiumRoles($contextId = null)
@@ -97,13 +100,13 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
             if ($existingGroups === 0) {
                 // Create premium groups automatically
                 $this->createPremiumRoles();
-                
+
                 // Log success
-                error_log("[PremiumSubmissionHelper] Premium groups created successfully during plugin activation");
+                error_log('[PremiumSubmissionHelper] Premium groups created successfully during plugin activation');
             }
         } catch (\Exception $e) {
             // Log error but don't break plugin functionality
-            error_log("[PremiumSubmissionHelper] Error creating premium groups: " . $e->getMessage());
+            error_log('[PremiumSubmissionHelper] Error creating premium groups: ' . $e->getMessage());
         }
     }
 
@@ -119,7 +122,7 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
 
         // Get installed locales
         $installedLocales = json_decode(
-            DB::table('site')->select('installed_locales')->first()->installed_locales ?? '["en_US"]', 
+            DB::table('site')->select('installed_locales')->first()->installed_locales ?? '["en_US"]',
             true
         ) ?: ['en_US'];
 
@@ -134,7 +137,7 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
 
     /**
      * Create premium roles for a specific context
-     * 
+     *
      * @param int $contextId The context ID (0 for site)
      * @param string $primaryLocale The primary locale
      * @param array $installedLocales Installed locales
@@ -156,7 +159,7 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
             $existingGroup = DB::table('user_groups')
                 ->where('context_id', $contextId)
                 ->where('role_id', $roleInfo['role_id'])
-                ->whereIn('user_group_id', function($query) use ($contextId) {
+                ->whereIn('user_group_id', function ($query) use ($contextId) {
                     $query->select('user_group_id')
                         ->from('user_group_settings')
                         ->where('context_id', $contextId)
@@ -180,10 +183,10 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
 
                 // Add user group settings
                 $this->addUserGroupSettings($userGroupId, $roleInfo, $primaryLocale, $installedLocales);
-                
+
                 // Add author permissions for premium roles
                 $this->addAuthorPermissions($userGroupId, $contextId);
-                
+
                 // Mark this as a premium group
                 DB::table('user_group_settings')->insert([
                     'user_group_id' => $userGroupId,
@@ -197,14 +200,18 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
 
     /**
      * Add settings for user group
-     * 
+     *
      * @param int $userGroupId The user group ID
      * @param array $roleInfo Role information
      * @param string $primaryLocale Primary locale
      * @param array $installedLocales Installed locales
      */
-    private function addUserGroupSettings(int $userGroupId, array $roleInfo, string $primaryLocale, array $installedLocales)
-    {
+    private function addUserGroupSettings(
+        int $userGroupId,
+        array $roleInfo,
+        string $primaryLocale,
+        array $installedLocales
+    ) {
         // Add localization keys
         DB::table('user_group_settings')->insert([
             [
@@ -224,7 +231,11 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
         // Add translations for each locale
         foreach ($installedLocales as $locale) {
             // Role name
-            $translatedName = $this->getTranslatedRoleName($roleInfo['name'], $locale, $primaryLocale);
+            $translatedName = $this->getTranslatedRoleName(
+                $roleInfo['name'],
+                $locale,
+                $primaryLocale
+            );
             if ($translatedName) {
                 DB::table('user_group_settings')->insert([
                     'user_group_id' => $userGroupId,
@@ -235,7 +246,11 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
             }
 
             // Role abbreviation
-            $translatedAbbrev = $this->getTranslatedRoleAbbrev($roleInfo['abbrev'], $locale, $primaryLocale);
+            $translatedAbbrev = $this->getTranslatedRoleAbbrev(
+                $roleInfo['abbrev'],
+                $locale,
+                $primaryLocale
+            );
             if ($translatedAbbrev) {
                 DB::table('user_group_settings')->insert([
                     'user_group_id' => $userGroupId,
@@ -249,11 +264,11 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
 
     /**
      * Add author permissions to a user group
-     * 
+     *
      * @param int $userGroupId The user group ID
      * @param int $contextId The context ID
      */
-    private function addAuthorPermissions(int $userGroupId, int $contextId)
+    private function addAuthorPermissions(int $userGroupId, int $contextId): void
     {
         // Define author permissions for premium users
         $authorPermissions = [
@@ -264,20 +279,20 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
             'canPublish' => false,         // Ne peut pas publier directement
             'canDelete' => false,          // Ne peut pas supprimer
             'canManage' => false,          // Ne peut pas gérer
-            
+
             // Permissions de consultation
             'canView' => true,             // Peut voir les articles
             'canComment' => true,          // Peut commenter
             'canRate' => true,             // Peut évaluer
             'canBookmark' => true,         // Peut marquer des articles
             'canShare' => true,            // Peut partager
-            
+
             // Permissions d'export et d'impression
             'canExport' => true,           // Peut exporter
             'canPrint' => true,            // Peut imprimer
             'canEmail' => true,            // Peut envoyer par email
             'canDownload' => true,         // Peut télécharger
-            
+
             // Permissions d'historique et de suivi
             'canViewHistory' => true,      // Peut voir l'historique
             'canViewNotes' => true,        // Peut voir les notes
@@ -290,7 +305,7 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
             'canViewPrints' => true,       // Peut voir ses impressions
             'canViewEmails' => true,       // Peut voir ses emails
             'canViewDownloads' => true,    // Peut voir ses téléchargements
-            
+
             // Permissions premium spécifiques
             'canUseAI' => true,            // Peut utiliser l'analyse IA
             'canAccessPremium' => true,    // Accès aux fonctionnalités premium
@@ -324,14 +339,18 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
 
     /**
      * Get translated role name
-     * 
+     *
      * @param string $roleName Role name in English
      * @param string $locale Target locale
      * @param string $primaryLocale Primary locale
+     *
      * @return string|null Translated name or null if no translation
      */
-    private function getTranslatedRoleName(string $roleName, string $locale, string $primaryLocale): ?string
-    {
+    private function getTranslatedRoleName(
+        string $roleName,
+        string $locale,
+        string $primaryLocale
+    ): ?string {
         // French translations
         $frenchTranslations = [
             'Premium' => 'Premium'
@@ -354,8 +373,11 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
         ];
 
         $localePrefix = substr($locale, 0, 2);
-        
-        if (isset($translations[$localePrefix]) && isset($translations[$localePrefix][$roleName])) {
+
+        if (
+            isset($translations[$localePrefix]) &&
+            isset($translations[$localePrefix][$roleName])
+        ) {
             return $translations[$localePrefix][$roleName];
         }
 
@@ -365,21 +387,25 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
 
     /**
      * Get translated role abbreviation
-     * 
+     *
      * @param string $roleAbbrev Role abbreviation in English
      * @param string $locale Target locale
      * @param string $primaryLocale Primary locale
+     *
      * @return string|null Translated abbreviation or null if no translation
      */
-    private function getTranslatedRoleAbbrev(string $roleAbbrev, string $locale, string $primaryLocale): ?string
-    {
+    private function getTranslatedRoleAbbrev(
+        string $roleAbbrev,
+        string $locale,
+        string $primaryLocale
+    ): ?string {
         // Abbreviation translations
         $abbrevTranslations = [
             'PRM' => 'PRM'
         ];
 
         $localePrefix = substr($locale, 0, 2);
-        
+
         if ($localePrefix === 'fr' && isset($abbrevTranslations[$roleAbbrev])) {
             return $abbrevTranslations[$roleAbbrev];
         }
@@ -390,43 +416,43 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
 
     /**
      * Check if the current user has Premium access
-     * 
+     *
      * Ultra-simple method: just check if user is in Premium group
      *
      * @param int $contextId The context ID to check roles in
+     *
      * @return bool True if user has premium access, false otherwise
      */
-    private function isUserPremium($contextId)
+    private function isUserPremium($contextId): bool
     {
         $request = Application::get()->getRequest();
         $user = $request->getUser();
-        
+
         if (!$user) {
             return false;
         }
-        
+
         // Ultra-simple: just check if user is in Premium group
         try {
             $userId = $user->getId();
-            
+
             // Direct SQL query to check Premium access
             $hasPremium = DB::table('user_groups as ug')
                 ->join('user_group_settings as ugs', 'ug.user_group_id', '=', 'ugs.user_group_id')
                 ->where('ug.context_id', $contextId)
                 ->where('ugs.setting_name', 'premiumGroupType')
                 ->where('ugs.setting_value', 'Premium')
-                ->whereExists(function($query) use ($userId) {
+                ->whereExists(function ($query) use ($userId) {
                     $query->select(DB::raw(1))
                         ->from('user_user_groups as uug')
                         ->whereRaw('uug.user_group_id = ug.user_group_id')
                         ->where('uug.user_id', $userId);
                 })
                 ->exists();
-                
+
             return $hasPremium;
-            
         } catch (\Exception $e) {
-            error_log("[PremiumSubmissionHelper] Error: " . $e->getMessage());
+            error_log('[PremiumSubmissionHelper] Error: ' . $e->getMessage());
             return false;
         }
     }
@@ -434,24 +460,24 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
     /**
      * Add AI analysis functionality to form components
      *
-     * @param string $hookName
-     * @param array $params
      */
-    public function addAIAnalysisToForm($hookName, $params)
-    {
+    public function addAIAnalysisToForm(
+        string $hookName,
+        array $params
+    ): bool {
         $form = $params[0];
-        
+
         // Only target the Details form (TitleAbstractForm)
         if (!$form instanceof TitleAbstractForm) {
             return false;
         }
-        
+
         // Add AI analysis button after the abstract field
         $this->addAIAnalysisField($form);
-        
+
         return false;
     }
-    
+
     /**
      * Add AI analysis field to the form
      *
@@ -464,11 +490,12 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
             'component' => 'field-ai-analysis',
             'name' => 'aiAnalysis',
             'label' => '🤖 Analyse IA Santaane',
-            'description' => 'Analysez votre résumé avec l\'intelligence artificielle Santaane pour obtenir des suggestions d\'amélioration.',
+            'description' => 'Analysez votre résumé avec l\'intelligence artificielle
+             Santaane pour obtenir des suggestions d\'amélioration.',
             'type' => 'ai-analysis',
             'position' => [FIELD_POSITION_AFTER, 'abstract']
         ];
-        
+
         // Add the field to the form
         $form->addField($aiField, [FIELD_POSITION_AFTER, 'abstract']);
     }
@@ -476,20 +503,20 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
     /**
      * Handle template display hook for injecting CSS and JS
      *
-     * @param string $hookName
-     * @param array $args
      */
-    public function handleTemplateDisplay($hookName, $args)
-    {
+    public function handleTemplateDisplay(
+        string $hookName,
+        array $args
+    ): bool {
         $request = Application::get()->getRequest();
         $templateManager = $args[0];
-        
+
         // Only inject on submission wizard pages
         $requestPath = $request->getRequestPath();
         if (strpos($requestPath, 'submission') === false) {
             return false;
         }
-        
+
         // Add CSS file
         $templateManager->addStyleSheet(
             'premiumSubmissionHelper',
@@ -498,7 +525,7 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
                 'contexts' => 'backend',
             ]
         );
-        
+
         // Add JavaScript file
         $templateManager->addJavaScript(
             'premiumSubmissionHelper',
@@ -507,22 +534,27 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
                 'contexts' => 'backend',
             ]
         );
-        
+
         // Add plugin data for JavaScript
         $context = $request->getContext();
         $contextId = $context ? $context->getId() : 0;
-        
+
         // Check if user is premium using the proper OJS method
         $isPremium = $this->isUserPremium($contextId);
-        
+
         $data = [
             'pluginUrl' => $request->getBaseUrl() . '/plugins/generic/premiumSubmissionHelper/',
             'contextId' => $contextId,
-            'apiUrl' => $request->getDispatcher()->url($request, Application::ROUTE_API, $context->getPath(), 'ai-analysis'),
+            'apiUrl' => $request->getDispatcher()->url(
+                $request,
+                Application::ROUTE_API,
+                $context->getPath(),
+                'ai-analysis'
+            ),
             'locale' => Locale::getLocale(),
             'isPremium' => $isPremium,
         ];
-        
+
         $templateManager->addJavaScript(
             'premiumSubmissionHelperData',
             '$.pkp.plugins.generic = $.pkp.plugins.generic || {};' .
@@ -532,22 +564,35 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
                 'contexts' => 'backend',
             ]
         );
-        
+
         return false;
     }
 
     /**
      * @copydoc Plugin::getActions()
      */
-    public function getActions($request, $verb)
-    {
+    public function getActions(
+        $request,
+        $verb
+    ): array {
         $router = $request->getRouter();
         return array_merge(
             $this->getEnabled() ? [
                 new LinkAction(
                     'settings',
                     new AjaxModal(
-                        $router->url($request, null, null, 'manage', null, ['verb' => 'settings', 'plugin' => $this->getName(), 'category' => 'generic']),
+                        $router->url(
+                            $request,
+                            null,
+                            null,
+                            'manage',
+                            null,
+                            [
+                                'verb' => 'settings',
+                                'plugin' => $this->getName(),
+                                'category' => 'generic'
+                            ]
+                        ),
                         $this->getDisplayName()
                     ),
                     __('manager.plugins.settings'),
@@ -561,16 +606,25 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
     /**
      * @copydoc Plugin::manage()
      */
-    public function manage($args, $request)
-    {
+    public function manage(
+        array $args,
+        $request
+    ) {
         switch ($request->getUserVar('verb')) {
             case 'settings':
-                return new JSONMessage(true, '<p>' . __('plugins.generic.premiumSubmissionHelper.settings.description') . '</p>');
+                return new JSONMessage(
+                    true,
+                    '<p>' . __('plugins.generic.premiumSubmissionHelper.settings.description')
+                     . '</p>'
+                );
         }
         return parent::manage($args, $request);
     }
 }
 
 if (!PKP_STRICT_MODE) {
-    class_alias('\APP\plugins\generic\premiumSubmissionHelper\PremiumSubmissionHelperPlugin', '\PremiumSubmissionHelperPlugin');
+    class_alias(
+        '\APP\plugins\generic\premiumSubmissionHelper\PremiumSubmissionHelperPlugin',
+        '\PremiumSubmissionHelperPlugin'
+    );
 }

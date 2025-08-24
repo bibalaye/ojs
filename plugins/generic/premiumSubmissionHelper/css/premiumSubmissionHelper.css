@@ -139,13 +139,13 @@
     .pkpFormField--aiAnalysis {
         margin-top: 0.75rem;
     }
-    
+
     .santaane-ai-button {
         width: 100%;
         padding: 12px 20px;
         font-size: 16px;
     }
-    
+
     .santaane-ai-results .pkpFormField__description {
         padding: 1rem;
     }
@@ -156,28 +156,28 @@
     .pkpFormField--aiAnalysis .pkpFormField__label {
         color: #e0e0e0;
     }
-    
+
     .pkpFormField--aiAnalysis .pkpFormField__description {
         color: #b0b0b0;
     }
-    
+
     .santaane-ai-results .pkpFormField__description {
         background: #2a2a2a;
         border-left-color: #4a9eff;
     }
-    
+
     .santaane-ai-results h4 {
         color: #e0e0e0;
     }
-    
+
     .santaane-ai-results strong {
         color: #d0d0d0;
     }
-    
+
     .santaane-ai-results span {
         color: #b0b0b0;
     }
-    
+
     .santaane-ai-results .footer {
         color: #888;
         border-top-color: #444;
@@ -397,13 +397,13 @@
         flex-direction: column;
         align-items: center;
     }
-    
+
     .benefit {
         width: 100%;
         max-width: 300px;
         text-align: center;
     }
-    
+
     .upgrade-content p {
         max-width: 100%;
     }

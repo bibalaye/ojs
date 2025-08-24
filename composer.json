@@ -1,5 +1,9 @@
 {
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.86"
+    },
+    "scripts": {
+        "fix-cs": "phpcbf --standard=PSR12",
+        "check-cs": "phpcs --standard=PSR12"
     }
 }
