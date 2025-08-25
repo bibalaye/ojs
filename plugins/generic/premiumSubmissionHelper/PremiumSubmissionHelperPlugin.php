@@ -66,7 +66,7 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
             Hook::add('TemplateManager::display', [$this, 'handleTemplateDisplay']);
 
             // Initialize premium roles if they don't exist
-            $this->_initializePremiumRoles($mainContextId);
+            $this->initializePremiumRoles($mainContextId);
         }
 
         return $success;
