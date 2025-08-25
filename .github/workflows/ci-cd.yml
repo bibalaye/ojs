@@ -43,7 +43,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Prepare temp plugin dir
+      - name: Clean old tmp plugin dir
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -54,15 +54,15 @@ jobs:
             mkdir -p /var/www/html/ojs/plugins/generic/premiumSubmissionHelper_tmp
 
       - name: Upload plugin files
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "plugins/generic/premiumSubmissionHelper/*"
+          source: "plugins/generic/premiumSubmissionHelper/**"
           target: "/var/www/html/ojs/plugins/generic/premiumSubmissionHelper_tmp"
 
-      - name: Activate new plugin version
+      - name: Activate plugin folder
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_IP }}
