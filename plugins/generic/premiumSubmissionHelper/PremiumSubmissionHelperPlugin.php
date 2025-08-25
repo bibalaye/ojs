@@ -28,14 +28,16 @@
 namespace APP\plugins\generic\premiumSubmissionHelper;
 
 use APP\core\Application;
-use Illuminate\Support\Facades\DB;
 use PKP\core\JSONMessage;
+use PKP\db\DAORegistry;
 use PKP\facades\Locale;
 use PKP\linkAction\LinkAction;
 use PKP\linkAction\request\AjaxModal;
 use PKP\plugins\GenericPlugin;
 use PKP\plugins\Hook;
 use PKP\security\Role;
+use PKP\site\SiteDAO;
+use PKP\user\Group\Group;
 
 /**
  * PremiumSubmissionHelperPlugin class
@@ -110,13 +112,11 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
     private function initializePremiumRoles($contextId = null)
     {
         try {
-            // Check if premium groups already exist
-            $existingGroups = DB::table('user_group_settings')
-                ->where('setting_name', 'premiumGroupType')
-                ->where('setting_value', 'Premium')
-                ->count();
+            // Check if premium groups already exist using DAO
+            $groupDao = DAORegistry::getDAO('GroupDAO');
+            $existingGroups = $groupDao->getGroupsBySetting('premiumGroupType', 'Premium', $contextId);
 
-            if ($existingGroups === 0) {
+            if (empty($existingGroups)) {
                 // Create premium groups automatically
                 $this->createPremiumRoles();
 
@@ -135,20 +135,19 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
      */
     private function createPremiumRoles()
     {
-        // Get installed contexts (journals)
-        $contexts = DB::table('journals')
-            ->select(['journal_id', 'primary_locale'])
-            ->get();
+        // Get installed contexts (journals) using DAO
+        $contextDao = DAORegistry::getDAO('ContextDAO');
+        $contexts = $contextDao->getAll();
 
-        // Get installed locales
-        $installedLocales = json_decode(
-            DB::table('site')->select('installed_locales')->first()->installed_locales ?? '["en_US"]',
-            true
-        ) ?: ['en_US'];
+
+        // Get installed locales using SiteDAO
+        $siteDao = DAORegistry::getDAO('SiteDAO');
+        $site = $siteDao->getSite();
+        $installedLocales = $site->getInstalledLocales();
 
         // Create premium roles for each context
-        foreach ($contexts as $context) {
-            $this->createPremiumRolesForContext($context->journal_id, $context->primary_locale, $installedLocales);
+        while ($context = $contexts->next()) {
+            $this->createPremiumRolesForContext($context->getId(), $context->getPrimaryLocale(), $installedLocales);
         }
 
         // Create premium roles at site level (global context)
@@ -175,32 +174,25 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
             ]
         ];
 
+        $groupDao = DAORegistry::getDAO('GroupDAO');
+
         foreach ($premiumRoleConfigs as $roleKey => $roleInfo) {
             // Check if premium group already exists for this context
-            $existingGroup = DB::table('user_groups')
-                ->where('context_id', $contextId)
-                ->where('role_id', $roleInfo['role_id'])
-                ->whereIn('user_group_id', function ($query) use ($contextId) {
-                    $query->select('user_group_id')
-                        ->from('user_group_settings')
-                        ->where('context_id', $contextId)
-                        ->where('setting_name', 'premiumGroupType')
-                        ->where('setting_value', 'Premium');
-                })
-                ->first();
+            $existingGroups = $groupDao->getGroupsBySetting('premiumGroupType', $roleKey, $contextId);
 
-            if (!$existingGroup) {
+            if (empty($existingGroups)) {
                 // Create user group using existing OJS role
-                $userGroupId = DB::table('user_groups')->insertGetId([
-                    'context_id' => $contextId,
-                    'role_id' => $roleInfo['role_id'], // Use existing OJS role
-                    'is_default' => false,
-                    'show_title' => true,
-                    'permit_self_registration' => false,
-                    'permit_metadata_edit' => true,
-                    'permit_settings' => false,
-                    'masthead' => false,
-                ]);
+                $group = new Group();
+                $group->setContextId($contextId);
+                $group->setRoleId($roleInfo['role_id']); // Use existing OJS role
+                $group->setDefault(false);
+                $group->setShowTitle(true);
+                $group->setPermitSelfRegistration(false);
+                $group->setPermitMetadataEdit(true);
+                $group->setPermitSettings(false);
+                $group->setMasthead(false);
+
+                $userGroupId = $groupDao->insertGroup($group);
 
                 // Add user group settings
                 $this->addUserGroupSettings($userGroupId, $roleInfo, $primaryLocale, $installedLocales);
@@ -208,13 +200,8 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
                 // Add author permissions for premium roles
                 $this->addAuthorPermissions($userGroupId, $contextId);
 
-                // Mark this as a premium group
-                DB::table('user_group_settings')->insert([
-                    'user_group_id' => $userGroupId,
-                    'locale' => '',
-                    'setting_name' => 'premiumGroupType',
-                    'setting_value' => $roleKey
-                ]);
+                // Mark this as a premium group using updateSetting
+                $groupDao->updateSetting($userGroupId, 'premiumGroupType', $roleKey, 'string');
             }
         }
     }
@@ -234,21 +221,23 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
         string $primaryLocale,
         array $installedLocales
     ) {
+        $groupDao = DAORegistry::getDAO('GroupDAO');
+
         // Add localization keys
-        DB::table('user_group_settings')->insert([
-            [
-                'user_group_id' => $userGroupId,
-                'locale' => '',
-                'setting_name' => 'nameLocaleKey',
-                'setting_value' => 'user.role.' . strtolower($roleInfo['name'])
-            ],
-            [
-                'user_group_id' => $userGroupId,
-                'locale' => '',
-                'setting_name' => 'abbrevLocaleKey',
-                'setting_value' => 'user.role.abbrev.' . strtolower($roleInfo['name'])
-            ]
-        ]);
+        $groupDao->updateSetting(
+            $userGroupId,
+            'nameLocaleKey',
+            'user.role.' .
+            strtolower($roleInfo['name']),
+            'string'
+        );
+        $groupDao->updateSetting(
+            $userGroupId,
+            'abbrevLocaleKey',
+            'user.role.abbrev.' .
+            strtolower($roleInfo['name']),
+            'string'
+        );
 
         // Add translations for each locale
         foreach ($installedLocales as $locale) {
@@ -259,12 +248,7 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
                 $primaryLocale
             );
             if ($translatedName) {
-                DB::table('user_group_settings')->insert([
-                    'user_group_id' => $userGroupId,
-                    'locale' => $locale,
-                    'setting_name' => 'name',
-                    'setting_value' => $translatedName
-                ]);
+                $groupDao->updateSetting($userGroupId, 'name', $translatedName, 'string', $locale);
             }
 
             // Role abbreviation
@@ -274,12 +258,7 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
                 $primaryLocale
             );
             if ($translatedAbbrev) {
-                DB::table('user_group_settings')->insert([
-                    'user_group_id' => $userGroupId,
-                    'locale' => $locale,
-                    'setting_name' => 'abbrev',
-                    'setting_value' => $translatedAbbrev
-                ]);
+                $groupDao->updateSetting($userGroupId, 'abbrev', $translatedAbbrev, 'string', $locale);
             }
         }
     }
@@ -293,6 +272,8 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
      */
     private function addAuthorPermissions(int $userGroupId, int $contextId): void
     {
+        $groupDao = DAORegistry::getDAO('GroupDAO');
+
         // Define author permissions for premium users
         $authorPermissions = [
             // Permissions de base d'auteur
@@ -336,28 +317,18 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
             'canUseAdvancedFeatures' => true, // Peut utiliser les fonctionnalités avancées
         ];
 
-        // Add author permissions to user group settings
-        DB::table('user_group_settings')->insert([
-            'user_group_id' => $userGroupId,
-            'locale' => '',
-            'setting_name' => 'authorPermissions',
-            'setting_value' => json_encode($authorPermissions)
-        ]);
+        // Add author permissions to user group settings using updateSetting
+        $groupDao->updateSetting($userGroupId, 'authorPermissions', json_encode($authorPermissions), 'string');
 
         // Add specific role permissions for premium access
-        DB::table('user_group_settings')->insert([
-            'user_group_id' => $userGroupId,
-            'locale' => '',
-            'setting_name' => 'premiumPermissions',
-            'setting_value' => json_encode([
-                'aiAnalysis' => true,      // Accès à l'analyse IA
-                'premiumFeatures' => true, // Accès aux fonctionnalités premium
-                'advancedTools' => true,   // Accès aux outils avancés
-                'prioritySupport' => true, // Support prioritaire
-                'extendedStorage' => true, // Stockage étendu
-                'customBranding' => true,  // Personnalisation de la marque
-            ])
-        ]);
+        $groupDao->updateSetting($userGroupId, 'premiumPermissions', json_encode([
+            'aiAnalysis' => true,      // Accès à l'analyse IA
+            'premiumFeatures' => true, // Accès aux fonctionnalités premium
+            'advancedTools' => true,   // Accès aux outils avancés
+            'prioritySupport' => true, // Support prioritaire
+            'extendedStorage' => true, // Stockage étendu
+            'customBranding' => true,  // Personnalisation de la marque
+        ]), 'string');
     }
 
     /**
@@ -455,25 +426,26 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
             return false;
         }
 
-        // Ultra-simple: just check if user is in Premium group
+        // Ultra-simple: just check if user is in Premium group using DAO
         try {
             $userId = $user->getId();
+            $groupDao = DAORegistry::getDAO('GroupDAO');
 
-            // Direct SQL query to check Premium access
-            $hasPremium = DB::table('user_groups as ug')
-                ->join('user_group_settings as ugs', 'ug.user_group_id', '=', 'ugs.user_group_id')
-                ->where('ug.context_id', $contextId)
-                ->where('ugs.setting_name', 'premiumGroupType')
-                ->where('ugs.setting_value', 'Premium')
-                ->whereExists(function ($query) use ($userId) {
-                    $query->select(DB::raw(1))
-                        ->from('user_user_groups as uug')
-                        ->whereRaw('uug.user_group_id = ug.user_group_id')
-                        ->where('uug.user_id', $userId);
-                })
-                ->exists();
+            // Get premium groups for this context
+            $premiumGroups = $groupDao->getGroupsBySetting('premiumGroupType', 'Premium', $contextId);
 
-            return $hasPremium;
+            if (empty($premiumGroups)) {
+                return false;
+            }
+
+            // Check if user is in any of the premium groups
+            foreach ($premiumGroups as $group) {
+                if ($groupDao->userInGroup($userId, $group->getId())) {
+                    return true;
+                }
+            }
+
+            return false;
         } catch (\Exception $e) {
             error_log('[PremiumSubmissionHelper] Error: ' . $e->getMessage());
             return false;
