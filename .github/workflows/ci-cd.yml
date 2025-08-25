@@ -61,6 +61,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           source: "plugins/generic/premiumSubmissionHelper/**"
           target: "/var/www/html/ojs/plugins/generic/premiumSubmissionHelper_tmp"
+          strip_components: 3
 
       - name: Activate plugin folder
         uses: appleboy/ssh-action@v1.0.0
