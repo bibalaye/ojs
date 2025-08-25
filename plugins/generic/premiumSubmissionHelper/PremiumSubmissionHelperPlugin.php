@@ -10,6 +10,14 @@
  *
  * @ingroup plugins_generic_premiumSubmissionHelper
  *
+ * @package plugins_generic_premiumSubmissionHelper
+ * @category Generic
+ *
+ * @author Premium Submission Helper Plugin
+ * @license GNU GPL v3
+ *
+ * @link https://github.com/premium-submission-helper
+ *
  * @brief Plugin OJS avec intégration de l'analyse IA Santaane
  */
 
@@ -21,7 +29,6 @@ namespace APP\plugins\generic\premiumSubmissionHelper;
 
 use APP\core\Application;
 use Illuminate\Support\Facades\DB;
-use PKP\components\forms\publication\TitleAbstractForm;
 use PKP\core\JSONMessage;
 use PKP\facades\Locale;
 use PKP\linkAction\LinkAction;
@@ -30,12 +37,22 @@ use PKP\plugins\GenericPlugin;
 use PKP\plugins\Hook;
 use PKP\security\Role;
 
+/**
+ * PremiumSubmissionHelperPlugin class
+ *
+ * Plugin OJS qui ajoute des fonctionnalités d'analyse IA Santaane
+ * pour les utilisateurs premium lors de la soumission d'articles.
+ */
 class PremiumSubmissionHelperPlugin extends GenericPlugin
 {
     /**
      * @copydoc Plugin::register()
      *
-     * @param null|mixed $mainContextId
+     * @param string $category The category name
+     * @param string $path The plugin path
+     * @param null|mixed $mainContextId The main context ID
+     *
+     * @return bool
      */
     public function register($category, $path, $mainContextId = null)
     {
@@ -45,15 +62,11 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
         }
 
         if ($success && $this->getEnabled($mainContextId)) {
-            // Register hooks for form components
-            Hook::add('Form::config::before', [$this, 'addAIAnalysisToForm']);
-            Hook::add('Form::config::after', [$this, 'addAIAnalysisToForm']);
-
             // Register template display hook for general injection
             Hook::add('TemplateManager::display', [$this, 'handleTemplateDisplay']);
 
             // Initialize premium roles if they don't exist
-            $this->initializePremiumRoles($mainContextId);
+            $this->_initializePremiumRoles($mainContextId);
         }
 
         return $success;
@@ -61,6 +74,7 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
 
     /**
      * @copydoc Plugin::getInstallSitePluginSettingsFile()
+     *
      */
     public function getInstallSitePluginSettingsFile(): string
     {
@@ -69,6 +83,8 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
 
     /**
      * @copydoc Plugin::getDisplayName()
+     *
+     * @return string
      */
     public function getDisplayName()
     {
@@ -77,6 +93,8 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
 
     /**
      * @copydoc Plugin::getDescription()
+     *
+     * @return string
      */
     public function getDescription()
     {
@@ -87,6 +105,7 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
      * Initialize premium roles when the plugin is enabled
      *
      * @param int|null $contextId The context ID
+     *
      */
     private function initializePremiumRoles($contextId = null)
     {
@@ -112,6 +131,7 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
 
     /**
      * Create premium roles in the database
+     *
      */
     private function createPremiumRoles()
     {
@@ -138,9 +158,10 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
     /**
      * Create premium roles for a specific context
      *
-     * @param int $contextId The context ID (0 for site)
-     * @param string $primaryLocale The primary locale
-     * @param array $installedLocales Installed locales
+     * @param int    $contextId        The context ID (0 for site)
+     * @param string $primaryLocale    The primary locale
+     * @param array  $installedLocales Installed locales
+     *
      */
     private function createPremiumRolesForContext(int $contextId, string $primaryLocale, array $installedLocales)
     {
@@ -201,10 +222,11 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
     /**
      * Add settings for user group
      *
-     * @param int $userGroupId The user group ID
-     * @param array $roleInfo Role information
-     * @param string $primaryLocale Primary locale
-     * @param array $installedLocales Installed locales
+     * @param int    $userGroupId      The user group ID
+     * @param array  $roleInfo         Role information
+     * @param string $primaryLocale    Primary locale
+     * @param array  $installedLocales Installed locales
+     *
      */
     private function addUserGroupSettings(
         int $userGroupId,
@@ -266,7 +288,8 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
      * Add author permissions to a user group
      *
      * @param int $userGroupId The user group ID
-     * @param int $contextId The context ID
+     * @param int $contextId   The context ID
+     *
      */
     private function addAuthorPermissions(int $userGroupId, int $contextId): void
     {
@@ -340,8 +363,8 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
     /**
      * Get translated role name
      *
-     * @param string $roleName Role name in English
-     * @param string $locale Target locale
+     * @param string $roleName      Role name in English
+     * @param string $locale        Target locale
      * @param string $primaryLocale Primary locale
      *
      * @return string|null Translated name or null if no translation
@@ -375,8 +398,8 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
         $localePrefix = substr($locale, 0, 2);
 
         if (
-            isset($translations[$localePrefix]) &&
-            isset($translations[$localePrefix][$roleName])
+            isset($translations[$localePrefix])
+            && isset($translations[$localePrefix][$roleName])
         ) {
             return $translations[$localePrefix][$roleName];
         }
@@ -388,8 +411,8 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
     /**
      * Get translated role abbreviation
      *
-     * @param string $roleAbbrev Role abbreviation in English
-     * @param string $locale Target locale
+     * @param string $roleAbbrev    Role abbreviation in English
+     * @param string $locale        Target locale
      * @param string $primaryLocale Primary locale
      *
      * @return string|null Translated abbreviation or null if no translation
@@ -458,50 +481,10 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
     }
 
     /**
-     * Add AI analysis functionality to form components
-     *
-     */
-    public function addAIAnalysisToForm(
-        string $hookName,
-        array $params
-    ): bool {
-        $form = $params[0];
-
-        // Only target the Details form (TitleAbstractForm)
-        if (!$form instanceof TitleAbstractForm) {
-            return false;
-        }
-
-        // Add AI analysis button after the abstract field
-        $this->addAIAnalysisField($form);
-
-        return false;
-    }
-
-    /**
-     * Add AI analysis field to the form
-     *
-     * @param TitleAbstractForm $form
-     */
-    private function addAIAnalysisField($form)
-    {
-        // Create a custom field component for AI analysis
-        $aiField = [
-            'component' => 'field-ai-analysis',
-            'name' => 'aiAnalysis',
-            'label' => '🤖 Analyse IA Santaane',
-            'description' => 'Analysez votre résumé avec l\'intelligence artificielle
-             Santaane pour obtenir des suggestions d\'amélioration.',
-            'type' => 'ai-analysis',
-            'position' => [FIELD_POSITION_AFTER, 'abstract']
-        ];
-
-        // Add the field to the form
-        $form->addField($aiField, [FIELD_POSITION_AFTER, 'abstract']);
-    }
-
-    /**
      * Handle template display hook for injecting CSS and JS
+     *
+     * @param string $hookName The hook name
+     * @param array  $args     The hook arguments
      *
      */
     public function handleTemplateDisplay(
@@ -570,6 +553,10 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
 
     /**
      * @copydoc Plugin::getActions()
+     *
+     * @param mixed $request The request object
+     * @param mixed $verb    The verb
+     *
      */
     public function getActions(
         $request,
@@ -605,6 +592,10 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
 
     /**
      * @copydoc Plugin::manage()
+     *
+     * @param mixed $args    The arguments
+     * @param mixed $request The request object
+     *
      */
     public function manage(
         $args,
