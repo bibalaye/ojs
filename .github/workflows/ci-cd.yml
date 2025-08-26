@@ -31,7 +31,10 @@ jobs:
 
       - name: Run PHP_CodeSniffer (PHP)
         run: ~/.composer/vendor/bin/phpcs --standard=PSR12 --extensions=php plugins/generic/premiumSubmissionHelper
-
+      
+      - name: Install ESLint
+        run: npm install -g eslint@8
+          
       - name: Run ESLint (JS)
         run: npx eslint plugins/generic/premiumSubmissionHelper/js --ext .js
 
