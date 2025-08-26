@@ -211,8 +211,6 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
             $userGroupDao->insertObject($userGroup);
         } catch (\Exception $e) {
             // Log the error for debugging
-            error_log('[PremiumSubmissionHelper] Error creating premium group for journal ' . $journalId . ': ' . $e->getMessage());
-            // Continue with other journals if one fails
         }
     }
 
