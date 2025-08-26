@@ -185,30 +185,32 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
             // Get journal's primary locale
             $primaryLocale = $this->getJournalPrimaryLocale($journalId);
 
-            // Import DAORegistry for OJS legacy class
-            import('lib.pkp.classes.db.DAORegistry');
+            // Create premium user group using direct database queries
+            $userGroupId = DB::table('user_groups')->insertGetId([
+                'context_id' => $journalId,
+                'role_id' => Role::ROLE_ID_AUTHOR,
+                'is_default' => false,
+                'show_title' => true,
+                'permit_self_registration' => false,
+                'permit_metadata_edit' => true,
+                'permit_settings' => false,
+                'masthead' => false,
+            ]);
 
-            // Get UserGroup DAO
-            $userGroupDao = DAORegistry::getDAO('UserGroupDAO');
-            /** @var \PKP\userGroup\UserGroupDAO $userGroupDao */
+            // Insert localized names into user_group_settings
+            DB::table('user_group_settings')->insert([
+                'user_group_id' => $userGroupId,
+                'locale' => $primaryLocale,
+                'setting_name' => 'name',
+                'setting_value' => self::PREMIUM_GROUP_NAME,
+            ]);
 
-            // Create new user group data object
-            $userGroup = $userGroupDao->newDataObject();
-            $userGroup->setContextId($journalId);
-            $userGroup->setRoleId(Role::ROLE_ID_AUTHOR);
-            $userGroup->setDefault(false);
-            $userGroup->setShowTitle(true);
-            $userGroup->setPermitSelfRegistration(false);
-            $userGroup->setPermitMetadataEdit(true);
-            $userGroup->setPermitSettings(false);
-            $userGroup->setMasthead(false);
-
-            // Set localized names using setData method (OJS standard)
-            $userGroup->setData('name', self::PREMIUM_GROUP_NAME, $primaryLocale);
-            $userGroup->setData('abbrev', self::PREMIUM_GROUP_ABBREV, $primaryLocale);
-
-            // Insert into database using DAO
-            $userGroupDao->insertObject($userGroup);
+            DB::table('user_group_settings')->insert([
+                'user_group_id' => $userGroupId,
+                'locale' => $primaryLocale,
+                'setting_name' => 'abbrev',
+                'setting_value' => self::PREMIUM_GROUP_ABBREV,
+            ]);
         } catch (\Exception $e) {
             // Log the error for debugging
         }
@@ -224,27 +226,16 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
     private function premiumGroupExistsForJournal(int $journalId): bool
     {
         try {
-            // Get journal's primary locale
-            $primaryLocale = $this->getJournalPrimaryLocale($journalId);
+            // Check if premium group exists using direct database query
+            $exists = DB::table('user_groups')
+                ->join('user_group_settings', 'user_groups.user_group_id', '=', 'user_group_settings.user_group_id')
+                ->where('user_groups.context_id', $journalId)
+                ->where('user_groups.role_id', Role::ROLE_ID_AUTHOR)
+                ->where('user_group_settings.setting_name', 'name')
+                ->where('user_group_settings.setting_value', self::PREMIUM_GROUP_NAME)
+                ->exists();
 
-            // Import DAORegistry for OJS legacy class
-            import('lib.pkp.classes.db.DAORegistry');
-
-            // Get UserGroup DAO
-            $userGroupDao = DAORegistry::getDAO('UserGroupDAO');
-            /** @var \PKP\userGroup\UserGroupDAO $userGroupDao */
-
-            // Get all user groups for this journal with author role
-            $userGroups = $userGroupDao->getByRoleId($journalId, Role::ROLE_ID_AUTHOR);
-
-            // Check if any group has the Premium name
-            foreach ($userGroups as $userGroup) {
-                if ($userGroup->getData('name', $primaryLocale) === self::PREMIUM_GROUP_NAME) {
-                    return true;
-                }
-            }
-
-            return false;
+            return $exists;
         } catch (\Exception $e) {
             return false;
         }
@@ -296,26 +287,17 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
         try {
             $userId = $user->getId();
 
-            // Import DAORegistry for OJS legacy class
-            import('lib.pkp.classes.db.DAORegistry');
+            // Check if user is assigned to a Premium group using direct database query
+            $isPremium = DB::table('user_groups')
+                ->join('user_group_settings', 'user_groups.user_group_id', '=', 'user_group_settings.user_group_id')
+                ->join('user_user_groups', 'user_groups.user_group_id', '=', 'user_user_groups.user_group_id')
+                ->where('user_groups.context_id', $contextId)
+                ->where('user_group_settings.setting_name', 'name')
+                ->where('user_group_settings.setting_value', self::PREMIUM_GROUP_NAME)
+                ->where('user_user_groups.user_id', $userId)
+                ->exists();
 
-            // Get UserGroup DAO
-            $userGroupDao = DAORegistry::getDAO('UserGroupDAO');
-            /** @var \PKP\userGroup\UserGroupDAO $userGroupDao */
-
-            // Get user groups for this user in the given context
-            $userGroups = $userGroupDao->getByUserId($userId, $contextId);
-
-            // Convert DAOResultFactory to array and check for Premium group
-            foreach ($userGroups as $userGroup) {
-                // Get the primary locale for this context
-                $contextPrimaryLocale = $this->getJournalPrimaryLocale($contextId);
-                if ($userGroup->getData('name', $contextPrimaryLocale) === self::PREMIUM_GROUP_NAME) {
-                    return true;
-                }
-            }
-
-            return false;
+            return $isPremium;
         } catch (\Exception $e) {
             return false;
         }
