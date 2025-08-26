@@ -25,8 +25,8 @@
 namespace APP\plugins\generic\premiumSubmissionHelper;
 
 use APP\core\Application;
-use APP\journal\Journal;
 use Illuminate\Support\Facades\DB;
+use PKP\core\DAORegistry;
 use PKP\core\JSONMessage;
 use PKP\facades\Locale;
 use PKP\linkAction\LinkAction;
@@ -34,7 +34,6 @@ use PKP\linkAction\request\AjaxModal;
 use PKP\plugins\GenericPlugin;
 use PKP\plugins\Hook;
 use PKP\security\Role;
-use PKP\userGroup\UserGroup;
 
 /**
  * Premium Submission Helper Plugin Class
@@ -187,24 +186,27 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
             // Get journal's primary locale
             $primaryLocale = $this->getJournalPrimaryLocale($journalId);
 
-            // Create the premium user group
-            $userGroup = new UserGroup([
-                'contextId' => $journalId,
-                'roleId' => Role::ROLE_ID_AUTHOR,
-                'isDefault' => false,
-                'showTitle' => true,
-                'permitSelfRegistration' => false,
-                'permitMetadataEdit' => true,
-                'permitSettings' => false,
-                'masthead' => false,
-            ]);
+            // Get UserGroup DAO
+            $userGroupDao = DAORegistry::getDAO('UserGroupDAO');
+            /** @var \PKP\userGroup\UserGroupDAO $userGroupDao */
 
-            // Set localized names
-            $userGroup->name = [$primaryLocale => self::PREMIUM_GROUP_NAME];
-            $userGroup->abbrev = [$primaryLocale => self::PREMIUM_GROUP_ABBREV];
+            // Create new user group data object
+            $userGroup = $userGroupDao->newDataObject();
+            $userGroup->setContextId($journalId);
+            $userGroup->setRoleId(Role::ROLE_ID_AUTHOR);
+            $userGroup->setDefault(false);
+            $userGroup->setShowTitle(true);
+            $userGroup->setPermitSelfRegistration(false);
+            $userGroup->setPermitMetadataEdit(true);
+            $userGroup->setPermitSettings(false);
+            $userGroup->setMasthead(false);
 
-            // Save to database
-            $userGroup->save();
+            // Set localized names using setData method
+            $userGroup->setData('name', self::PREMIUM_GROUP_NAME, $primaryLocale);
+            $userGroup->setData('abbrev', self::PREMIUM_GROUP_ABBREV, $primaryLocale);
+
+            // Insert into database using DAO
+            $userGroupDao->insertObject($userGroup);
         } catch (\Exception $e) {
             // Continue with other journals if one fails
         }
@@ -219,15 +221,25 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
      */
     private function premiumGroupExistsForJournal(int $journalId): bool
     {
-        $groupId = DB::table('user_groups')
-            ->join('user_group_settings', 'user_groups.user_group_id', '=', 'user_group_settings.user_group_id')
-            ->where('user_groups.context_id', $journalId)
-            ->where('user_groups.role_id', Role::ROLE_ID_AUTHOR)
-            ->where('user_group_settings.setting_name', 'name')
-            ->where('user_group_settings.setting_value', self::PREMIUM_GROUP_NAME)
-            ->value('user_groups.user_group_id');
+        try {
+            // Get UserGroup DAO
+            $userGroupDao = DAORegistry::getDAO('UserGroupDAO');
+            /** @var \PKP\userGroup\UserGroupDAO $userGroupDao */
 
-        return $groupId !== null;
+            // Get all user groups for this journal with author role
+            $userGroups = $userGroupDao->getByRoleId($journalId, Role::ROLE_ID_AUTHOR);
+
+            // Check if any group has the Premium name
+            foreach ($userGroups as $userGroup) {
+                if ($userGroup->getLocalizedData('name') === self::PREMIUM_GROUP_NAME) {
+                    return true;
+                }
+            }
+
+            return false;
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 
     /**
@@ -271,15 +283,21 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
         try {
             $userId = $user->getId();
 
-            // Check if user is assigned to a Premium group in the given context
-            return DB::table('user_groups')
-                ->join('user_group_settings', 'user_groups.user_group_id', '=', 'user_group_settings.user_group_id')
-                ->join('user_user_groups', 'user_groups.user_group_id', '=', 'user_user_groups.user_group_id')
-                ->where('user_groups.context_id', $contextId)
-                ->where('user_group_settings.setting_name', 'name')
-                ->where('user_group_settings.setting_value', self::PREMIUM_GROUP_NAME)
-                ->where('user_user_groups.user_id', $userId)
-                ->exists();
+            // Get UserGroup DAO
+            $userGroupDao = DAORegistry::getDAO('UserGroupDAO');
+            /** @var \PKP\userGroup\UserGroupDAO $userGroupDao */
+
+            // Get user groups for this user in the given context
+            $userGroups = $userGroupDao->getByUserId($userId, $contextId);
+
+            // Convert DAOResultFactory to array and check for Premium group
+            foreach ($userGroups as $userGroup) {
+                if ($userGroup->getLocalizedData('name') === self::PREMIUM_GROUP_NAME) {
+                    return true;
+                }
+            }
+
+            return false;
         } catch (\Exception $e) {
             return false;
         }
