@@ -29,8 +29,15 @@ jobs:
       - name: Install PHP_CodeSniffer
         run: composer global require "squizlabs/php_codesniffer=*"
 
-      - name: Run PHP_CodeSniffer
-        run: ~/.composer/vendor/bin/phpcs --standard=PSR12 plugins/generic/premiumSubmissionHelper
+      - name: Run PHP_CodeSniffer (PHP)
+        run: ~/.composer/vendor/bin/phpcs --standard=PSR12 --extensions=php plugins/generic/premiumSubmissionHelper
+
+      - name: Run ESLint (JS)
+        run: npx eslint plugins/generic/premiumSubmissionHelper/js --ext .js
+
+      - name: Run Stylelint (CSS)
+        run: npx stylelint "plugins/generic/premiumSubmissionHelper/css/**/*.css"
+        
 
   deploy:
     runs-on: ubuntu-latest

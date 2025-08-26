@@ -3,7 +3,7 @@
         "friendsofphp/php-cs-fixer": "^3.86"
     },
     "scripts": {
-        "fix-cs": "phpcbf --standard=PSR12",
-        "check-cs": "phpcs --standard=PSR12"
+        "fix-cs": "phpcbf --standard=PSR12 --extensions=php plugins/generic/premiumSubmissionHelper",
+        "check-cs": "phpcs --standard=PSR12 --extensions=php plugins/generic/premiumSubmissionHelper"
     }
 }

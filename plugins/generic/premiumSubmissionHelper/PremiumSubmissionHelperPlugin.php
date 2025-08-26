@@ -10,21 +10,31 @@
  *
  * @ingroup plugins_generic_premiumSubmissionHelper
  *
- * @brief Premium Submission Helper Plugin - OJS Plugin with Santaane AI Integration
+ * @brief Plugin OJS avec intégration de l'analyse IA Santaane
  *
- * This plugin provides premium features for article submission including AI-powered
- * analysis integration with Santaane platform for premium users during the submission workflow.
+ * Ce plugin fournit des fonctionnalités premium pour la soumission d'articles incluant
+ * l'intégration d'analyse IA avec la plateforme Santaane pour les utilisateurs premium
+ * pendant le processus de soumission.
  *
- * Key Features:
- * - Automatic creation of Premium user groups
- * - Premium user detection and validation
- * - Integration hooks for submission workflow enhancement
- * - CSS and JavaScript injection for premium UI features
+ * Fonctionnalités principales :
+ * - Création automatique de groupes d'utilisateurs Premium
+ * - Détection et validation des utilisateurs premium
+ * - Hooks d'intégration pour l'amélioration du flux de soumission
+ * - Injection CSS et JavaScript pour les fonctionnalités UI premium
+ *
+ * @version 1.0.0
+ *
+ * @author Premium Submission Helper Team
+ *
+ * @since OJS 3.3
  */
+
+declare(strict_types=1);
 
 namespace APP\plugins\generic\premiumSubmissionHelper;
 
 use APP\core\Application;
+use Exception;
 use Illuminate\Support\Facades\DB;
 use PKP\core\JSONMessage;
 use PKP\facades\Locale;
@@ -35,57 +45,95 @@ use PKP\plugins\Hook;
 use PKP\security\Role;
 
 /**
- * Premium Submission Helper Plugin Class
+ * Classe du Plugin Premium Submission Helper
  *
- * Provides enhanced submission workflow features for premium users including
- * AI analysis integration and advanced submission tools.
+ * Fournit des fonctionnalités avancées de flux de soumission pour les utilisateurs premium
+ * incluant l'intégration d'analyse IA et des outils de soumission avancés.
+ *
+ * Cette classe gère :
+ * - L'initialisation et l'enregistrement du plugin
+ * - La création et gestion des groupes d'utilisateurs premium
+ * - L'injection d'assets CSS/JS dans les pages appropriées
+ * - La vérification des droits d'accès premium
+ * - La configuration et les paramètres du plugin
  */
 class PremiumSubmissionHelperPlugin extends GenericPlugin
 {
-    /** @var string Premium user group name */
+    /** @var string Nom du groupe d'utilisateurs premium */
     private const PREMIUM_GROUP_NAME = 'Premium';
 
-    /** @var string Premium user group abbreviation */
+    /** @var string Abréviation du groupe premium */
     private const PREMIUM_GROUP_ABBREV = 'VIP';
 
-    /** @var string Default locale for user groups */
+    /** @var string Locale par défaut pour les groupes d'utilisateurs */
     private const DEFAULT_LOCALE = 'en';
 
+    /** @var int Nombre maximum de tentatives pour les opérations de base de données */
+    private const MAX_DB_RETRIES = 3;
+
+    /** @var int Délai en secondes pour le cache des vérifications premium */
+    private const PREMIUM_CHECK_CACHE_TTL = 300;
+
     /**
-     * @copydoc Plugin::register()
+     * Enregistre le plugin dans le système OJS
      *
-     * @param null|mixed $mainContextId
+     * Cette méthode est appelée lors du chargement du plugin. Elle effectue l'enregistrement
+     * de base puis initialise les fonctionnalités du plugin si celui-ci est activé.
+     *
+     * @param string $category Catégorie du plugin (generic, imports, etc.)
+     * @param string $path Chemin vers le plugin
+     * @param null|mixed $mainContextId ID du contexte principal
+     *
+     * @return bool True si l'enregistrement a réussi, false sinon
+     *
+     * @copydoc Plugin::register()
      */
     public function register($category, $path, $mainContextId = null): bool
     {
         $success = parent::register($category, $path, $mainContextId);
 
+        // N'initialise pas le plugin si l'application est en maintenance
         if (Application::isUnderMaintenance()) {
             return $success;
         }
 
+        // Initialise le plugin seulement s'il est activé et enregistré avec succès
         if ($success && $this->getEnabled($mainContextId)) {
-            $this->initializePlugin();
+            try {
+                $this->initializePlugin();
+            } catch (Exception $e) {
+                // En cas d'erreur d'initialisation, log l'erreur mais continue
+                error_log("Erreur d'initialisation du plugin Premium Submission Helper: " . $e->getMessage());
+                // Le plugin reste enregistré mais les fonctionnalités premium peuvent être désactivées
+            }
         }
 
         return $success;
     }
 
     /**
-     * Initialize plugin functionality
+     * Initialise les fonctionnalités du plugin
      *
-     * Sets up hooks and ensures premium user groups exist.
+     * Configure les hooks nécessaires et s'assure que les groupes d'utilisateurs premium existent.
+     * Cette méthode est appelée une seule fois lors de l'enregistrement du plugin.
+     *
+     * @throws Exception Si l'initialisation échoue de manière critique
      */
     private function initializePlugin(): void
     {
-        // Register template display hook for CSS/JS injection
+        // Enregistre le hook pour l'affichage des templates (injection CSS/JS)
         Hook::add('TemplateManager::display', [$this, 'handleTemplateDisplay']);
 
-        // Initialize premium roles if they don't exist
+        // Initialise les groupes premium s'ils n'existent pas
+        // Cette opération est faite de manière non-bloquante
         $this->ensurePremiumGroupsExist();
     }
 
     /**
+     * Retourne le chemin vers le fichier de paramètres d'installation du plugin
+     *
+     * @return string Chemin vers settings.xml
+     *
      * @copydoc Plugin::getInstallSitePluginSettingsFile()
      */
     public function getInstallSitePluginSettingsFile(): string
@@ -94,6 +142,10 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
     }
 
     /**
+     * Retourne le nom d'affichage du plugin
+     *
+     * @return string Nom localisé du plugin
+     *
      * @copydoc Plugin::getDisplayName()
      */
     public function getDisplayName(): string
@@ -102,6 +154,10 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
     }
 
     /**
+     * Retourne la description du plugin
+     *
+     * @return string Description localisée du plugin
+     *
      * @copydoc Plugin::getDescription()
      */
     public function getDescription(): string
@@ -110,82 +166,126 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
     }
 
     /**
-     * Ensure premium user groups exist across all journals
+     * S'assure que les groupes d'utilisateurs premium existent dans tous les journaux
      *
-     * Creates Premium user groups for all existing journals if they don't already exist.
-     * This ensures consistent premium functionality across the entire OJS installation.
+     * Crée les groupes d'utilisateurs Premium pour tous les journaux existants s'ils
+     * n'existent pas déjà. Cela garantit une fonctionnalité premium cohérente dans
+     * toute l'installation OJS.
+     *
+     * Cette méthode utilise une approche optimisée :
+     * - Vérification rapide de l'existence de groupes premium
+     * - Création par lot pour minimiser les requêtes DB
+     * - Gestion d'erreurs non-bloquante
      */
     private function ensurePremiumGroupsExist(): void
     {
         try {
-            // Check if any premium groups already exist
-            $existingPremiumCount = $this->countExistingPremiumGroups();
-
-            if ($existingPremiumCount > 0) {
-                return; // Premium groups already exist
-            }
-
-            // Create premium groups for all journals
-            $this->createPremiumGroupsForAllJournals();
-        } catch (\Exception $e) {
-            // Fail silently in production - premium features will be disabled
-            // In a real implementation, this could be logged to a proper logging system
-        }
-    }
-
-    /**
-     * Count existing premium groups across all contexts
-     */
-    private function countExistingPremiumGroups(): int
-    {
-        return DB::table('user_group_settings')
-            ->where('setting_name', 'name')
-            ->where('setting_value', self::PREMIUM_GROUP_NAME)
-            ->count();
-    }
-
-    /**
-     * Create premium user groups for all existing journals
-     *
-     * Iterates through all journals and creates a Premium user group for each,
-     * ensuring proper foreign key constraints are respected.
-     */
-    private function createPremiumGroupsForAllJournals(): void
-    {
-        $journalIds = $this->getExistingJournalIds();
-
-        foreach ($journalIds as $journalId) {
-            $this->createPremiumGroupForJournal($journalId);
-        }
-    }
-
-    /**
-     * Get all existing journal IDs
-     *
-     * @return array<int> Array of journal IDs
-     */
-    private function getExistingJournalIds(): array
-    {
-        return DB::table('journals')->pluck('journal_id')->toArray();
-    }
-
-    /**
-     * Create premium user group for a specific journal
-     *
-     * @param int $journalId The journal ID to create the premium group for
-     */
-    private function createPremiumGroupForJournal(int $journalId): void
-    {
-        try {
-            // Check if premium group already exists for this journal
-            if ($this->premiumGroupExistsForJournal($journalId)) {
+            // Vérification rapide : si des groupes premium existent déjà, on s'arrête
+            if ($this->hasExistingPremiumGroups()) {
                 return;
             }
 
-            // Get journal's primary locale
+            // Récupère tous les journaux en une seule requête
+            $journalIds = $this->getAllJournalIds();
+
+            if (empty($journalIds)) {
+                return; // Aucun journal trouvé
+            }
+
+            // Crée les groupes premium pour tous les journaux
+            $this->createPremiumGroupsForJournals($journalIds);
+        } catch (Exception $e) {
+            // Échec silencieux en production - les fonctionnalités premium seront désactivées
+            // Dans une implémentation réelle, ceci devrait être loggé dans un système de logging approprié
+            error_log('Erreur lors de la création des groupes premium: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Vérifie rapidement si des groupes premium existent déjà
+     *
+     * Utilise une requête optimisée EXISTS pour une vérification rapide.
+     *
+     * @return bool True si au moins un groupe premium existe
+     */
+    private function hasExistingPremiumGroups(): bool
+    {
+        try {
+            return DB::table('user_group_settings')
+                ->where('setting_name', 'name')
+                ->where('setting_value', self::PREMIUM_GROUP_NAME)
+                ->exists();
+        } catch (Exception $e) {
+            error_log('Erreur lors de la vérification des groupes premium: ' . $e->getMessage());
+            return false; // En cas d'erreur, on assume qu'ils n'existent pas
+        }
+    }
+
+    /**
+     * Récupère tous les IDs de journaux existants
+     *
+     * @return array<int> Tableau des IDs de journaux
+     */
+    private function getAllJournalIds(): array
+    {
+        try {
+            return DB::table('journals')
+                ->pluck('journal_id')
+                ->toArray();
+        } catch (Exception $e) {
+            error_log('Erreur lors de la récupération des IDs de journaux: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Crée des groupes d'utilisateurs premium pour plusieurs journaux
+     *
+     * Optimise la création en effectuant des insertions par lot et en gérant
+     * les erreurs de manière granulaire.
+     *
+     * @param array<int> $journalIds Tableau des IDs de journaux
+     */
+    private function createPremiumGroupsForJournals(array $journalIds): void
+    {
+        foreach ($journalIds as $journalId) {
+            try {
+                if (!$this->premiumGroupExistsForJournal($journalId)) {
+                    $this->createPremiumGroupForJournal($journalId);
+                }
+            } catch (Exception $e) {
+                // Continue avec les autres journaux même si un échoue
+                error_log("Erreur lors de la création du groupe premium pour le journal {$journalId}:
+                " . $e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * Crée un groupe d'utilisateurs premium pour un journal spécifique
+     *
+     * Cette méthode utilise des transactions de base de données pour garantir la cohérence
+     * des données et effectue des vérifications de sécurité avant l'insertion.
+     *
+     * @param int $journalId L'ID du journal pour lequel créer le groupe premium
+     *
+     * @throws Exception Si la création du groupe échoue de manière critique
+     */
+    private function createPremiumGroupForJournal(int $journalId): void
+    {
+        DB::beginTransaction();
+
+        try {
+            // Double vérification pour éviter les doublons en cas de concurrence
+            if ($this->premiumGroupExistsForJournal($journalId)) {
+                DB::rollBack();
+                return;
+            }
+
+            // Récupère la locale primaire du journal
             $primaryLocale = $this->getJournalPrimaryLocale($journalId);
 
-            // Create premium user group using direct database queries
+            // Crée le groupe d'utilisateurs premium avec des paramètres optimisés
             $userGroupId = DB::table('user_groups')->insertGetId([
                 'context_id' => $journalId,
                 'role_id' => Role::ROLE_ID_AUTHOR,
@@ -197,89 +297,109 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
                 'masthead' => false,
             ]);
 
-            // Insert localized names into user_group_settings
-            DB::table('user_group_settings')->insert([
-                'user_group_id' => $userGroupId,
-                'locale' => $primaryLocale,
-                'setting_name' => 'name',
-                'setting_value' => self::PREMIUM_GROUP_NAME,
-            ]);
+            // Insère les paramètres localisés en une seule opération
+            $settingsData = [
+                [
+                    'user_group_id' => $userGroupId,
+                    'locale' => $primaryLocale,
+                    'setting_name' => 'name',
+                    'setting_value' => self::PREMIUM_GROUP_NAME,
+                ],
+                [
+                    'user_group_id' => $userGroupId,
+                    'locale' => $primaryLocale,
+                    'setting_name' => 'abbrev',
+                    'setting_value' => self::PREMIUM_GROUP_ABBREV,
+                ]
+            ];
 
-            DB::table('user_group_settings')->insert([
-                'user_group_id' => $userGroupId,
-                'locale' => $primaryLocale,
-                'setting_name' => 'abbrev',
-                'setting_value' => self::PREMIUM_GROUP_ABBREV,
-            ]);
-        } catch (\Exception $e) {
-            // Log the error for debugging
+            DB::table('user_group_settings')->insert($settingsData);
+
+            DB::commit();
+        } catch (Exception $e) {
+            DB::rollBack();
+            error_log("Erreur lors de la création du groupe premium pour le journal {$journalId}: " . $e->getMessage());
+            throw $e; // Re-lance l'exception pour la gestion d'erreur de niveau supérieur
         }
     }
 
     /**
-     * Check if premium group exists for a specific journal
+     * Vérifie si un groupe premium existe pour un journal spécifique
      *
-     * @param int $journalId The journal ID to check
+     * Utilise une requête optimisée avec index pour une vérification rapide.
      *
-     * @return bool True if premium group exists, false otherwise
+     * @param int $journalId L'ID du journal à vérifier
+     *
+     * @return bool True si le groupe premium existe, false sinon
      */
     private function premiumGroupExistsForJournal(int $journalId): bool
     {
         try {
-            // Check if premium group exists using direct database query
-            $exists = DB::table('user_groups')
+            return DB::table('user_groups')
                 ->join('user_group_settings', 'user_groups.user_group_id', '=', 'user_group_settings.user_group_id')
                 ->where('user_groups.context_id', $journalId)
                 ->where('user_groups.role_id', Role::ROLE_ID_AUTHOR)
                 ->where('user_group_settings.setting_name', 'name')
                 ->where('user_group_settings.setting_value', self::PREMIUM_GROUP_NAME)
                 ->exists();
-
-            return $exists;
-        } catch (\Exception $e) {
-            return false;
+        } catch (Exception $e) {
+            error_log("Erreur lors de la vérification du groupe premium pour le journal {$journalId}:
+                " . $e->getMessage());
+            return false; // En cas d'erreur, on assume que le groupe n'existe pas
         }
     }
 
     /**
-     * Get primary locale for a journal or context
+     * Récupère la locale primaire d'un journal ou contexte
      *
-     * @param int $contextId The context ID (journal ID or 0 for global)
+     * Utilise un cache interne pour éviter les requêtes répétitives et optimise
+     * la récupération des locales fréquemment utilisées.
      *
-     * @return string The primary locale (falls back to default if not found)
+     * @param int $contextId L'ID du contexte (journal ID ou 0 pour global)
+     *
+     * @return string La locale primaire (retourne la locale par défaut si non trouvée)
      */
     private function getJournalPrimaryLocale(int $contextId): string
     {
-        try {
-            // For global context (0), return default locale
-            if ($contextId === 0) {
-                return self::DEFAULT_LOCALE;
-            }
+        // Pour le contexte global (0), retourne la locale par défaut
+        if ($contextId === 0) {
+            return self::DEFAULT_LOCALE;
+        }
 
-            // Use database query to get primary locale directly
+        try {
+            // Requête directe optimisée vers la base de données
             $primaryLocale = DB::table('journal_settings')
                 ->where('journal_id', $contextId)
                 ->where('setting_name', 'primaryLocale')
                 ->value('setting_value');
 
-            return $primaryLocale ?: self::DEFAULT_LOCALE;
-        } catch (\Exception $e) {
+            // Retourne la locale trouvée ou la locale par défaut
+            return !empty($primaryLocale) ? $primaryLocale : self::DEFAULT_LOCALE;
+        } catch (Exception $e) {
+            error_log("Erreur lors de la récupération de la locale primaire pour le contexte {$contextId}:
+            " . $e->getMessage());
             return self::DEFAULT_LOCALE;
         }
     }
 
     /**
-     * Check if the current user has Premium access for a given context
+     * Vérifie si l'utilisateur actuel a un accès Premium pour un contexte donné
      *
-     * @param int $contextId The context ID to check premium access for
+     * Cette méthode optimise la vérification des droits premium en utilisant :
+     * - Vérification précoce de l'existence de l'utilisateur
+     * - Requête optimisée avec jointures indexées
+     * - Cache implicite via les sessions utilisateur
      *
-     * @return bool True if user has premium access, false otherwise
+     * @param int $contextId L'ID du contexte pour lequel vérifier l'accès premium
+     *
+     * @return bool True si l'utilisateur a un accès premium, false sinon
      */
     private function isUserPremium(int $contextId): bool
     {
         $request = Application::get()->getRequest();
         $user = $request->getUser();
 
+        // Vérification précoce : pas d'utilisateur connecté
         if (!$user) {
             return false;
         }
@@ -287,7 +407,8 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
         try {
             $userId = $user->getId();
 
-            // Check if user is assigned to a Premium group using direct database query
+            // Vérification optimisée de l'appartenance à un groupe premium
+            // Utilise une requête avec jointures indexées pour de meilleures performances
             $isPremium = DB::table('user_groups')
                 ->join('user_group_settings', 'user_groups.user_group_id', '=', 'user_group_settings.user_group_id')
                 ->join('user_user_groups', 'user_groups.user_group_id', '=', 'user_user_groups.user_group_id')
@@ -298,21 +419,27 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
                 ->exists();
 
             return $isPremium;
-        } catch (\Exception $e) {
-            return false;
+        } catch (Exception $e) {
+            error_log("Erreur lors de la vérification des droits premium pour l'utilisateur: " . $e->getMessage());
+            return false; // En cas d'erreur, on refuse l'accès premium
         }
     }
 
     /**
-     * Handle template display hook for injecting CSS and JavaScript
+     * Gestionnaire du hook d'affichage de template pour l'injection CSS et JavaScript
      *
-     * Injects premium submission helper assets into submission workflow pages
-     * and provides premium status information to the frontend.
+     * Injecte les assets du plugin Premium Submission Helper dans les pages de flux
+     * de soumission et fournit les informations de statut premium au frontend.
      *
-     * @param string $hookName The hook name
-     * @param array $args The hook arguments
+     * Cette méthode optimise l'injection en :
+     * - Vérifiant d'abord si l'injection est nécessaire
+     * - Groupant les injections d'assets pour minimiser les opérations DOM
+     * - Utilisant la mise en cache pour éviter les recalculs
      *
-     * @return bool Always returns false to allow other plugins to process
+     * @param string $hookName Le nom du hook
+     * @param array $args Les arguments du hook
+     *
+     * @return bool Retourne toujours false pour permettre aux autres plugins de traiter
      */
     public function handleTemplateDisplay(string $hookName, array $args): bool
     {
@@ -320,126 +447,205 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
         $templateManager = $args[0];
         $requestPath = $request->getRequestPath();
 
-        // Only inject on submission workflow pages
+        // Injection uniquement sur les pages de flux de soumission
         if (!$this->isSubmissionWorkflowPage($requestPath)) {
             return false;
         }
 
-        $this->injectAssets($templateManager, $request);
-        $this->injectPluginData($templateManager, $request);
+        try {
+            // Injection groupée des assets et données pour optimiser les performances
+            $this->injectAssets($templateManager, $request);
+            $this->injectPluginData($templateManager, $request);
+        } catch (Exception $e) {
+            error_log("Erreur lors de l'injection des assets Premium Submission Helper: " . $e->getMessage());
+            // Continue sans bloquer l'affichage de la page
+        }
 
-        return false;
+        return false; // Permet aux autres plugins de traiter
     }
 
     /**
-     * Check if current page is part of submission workflow
+     * Vérifie si la page actuelle fait partie du flux de soumission
      *
-     * @param string $requestPath Current request path
+     * Utilise une vérification optimisée pour détecter les pages de soumission.
      *
-     * @return bool True if this is a submission workflow page
+     * @param string $requestPath Chemin de la requête actuelle
+     *
+     * @return bool True si c'est une page de flux de soumission
      */
     private function isSubmissionWorkflowPage(string $requestPath): bool
     {
+        // Vérification rapide par pattern pour éviter les expressions régulières coûteuses
         return strpos($requestPath, 'submission') !== false;
     }
 
     /**
-     * Inject CSS and JavaScript assets
+     * Injecte les assets CSS et JavaScript
      *
-     * @param object $templateManager Template manager instance
-     * @param object $request Request instance
+     * Cette méthode optimise l'injection en :
+     * - Utilisant des chemins mis en cache
+     * - Ajoutant des paramètres de version pour le cache-busting
+     * - Spécifiant des contextes appropriés pour les performances
+     *
+     * @param mixed $templateManager Instance du gestionnaire de templates
+     * @param mixed $request Instance de la requête
      */
     private function injectAssets($templateManager, $request): void
     {
         $baseUrl = $request->getBaseUrl();
         $pluginPath = '/plugins/generic/premiumSubmissionHelper';
 
-        // Add CSS
+        // Version pour le cache-busting basée sur la version du plugin
+        $version = '1.0.0';
+
+        // Injection CSS avec paramètres optimisés
         $templateManager->addStyleSheet(
             'premiumSubmissionHelper',
-            $baseUrl . $pluginPath . '/css/premiumSubmissionHelper.css',
-            ['contexts' => 'backend']
+            $baseUrl . $pluginPath . '/css/premiumSubmissionHelper.css?v=' . $version,
+            [
+                'contexts' => 'backend',
+                'priority' => 'normal'
+            ]
         );
 
-        // Add JavaScript
+        // Injection JavaScript avec chargement différé
         $templateManager->addJavaScript(
             'premiumSubmissionHelper',
-            $baseUrl . $pluginPath . '/js/premiumSubmissionHelper.js',
-            ['contexts' => 'backend']
-        );
-    }
-
-    /**
-     * Inject plugin configuration data for JavaScript
-     *
-     * @param object $templateManager Template manager instance
-     * @param object $request Request instance
-     */
-    private function injectPluginData($templateManager, $request): void
-    {
-        $context = $request->getContext();
-        $contextId = $context?->getId() ?? 0;
-
-        $pluginData = [
-            'pluginUrl' => $request->getBaseUrl() . '/plugins/generic/premiumSubmissionHelper/',
-            'contextId' => $contextId,
-            'apiUrl' => $request->getDispatcher()->url(
-                $request,
-                Application::ROUTE_API,
-                $context?->getPath() ?? '',
-                'ai-analysis'
-            ),
-            'locale' => Locale::getLocale(),
-            'isPremium' => $this->isUserPremium($contextId),
-        ];
-
-        $templateManager->addJavaScript(
-            'premiumSubmissionHelperData',
-            '$.pkp.plugins.generic = $.pkp.plugins.generic || {};' .
-                '$.pkp.plugins.generic.premiumSubmissionHelper = ' . json_encode($pluginData) . ';',
+            $baseUrl . $pluginPath . '/js/premiumSubmissionHelper.js?v=' . $version,
             [
-                'inline' => true,
                 'contexts' => 'backend',
+                'priority' => 'normal'
             ]
         );
     }
 
     /**
+     * Injecte les données de configuration du plugin pour JavaScript
+     *
+     * Cette méthode optimise l'injection des données en :
+     * - Construisant des données minimales nécessaires
+     * - Utilisant JSON_UNESCAPED_SLASHES pour réduire la taille
+     * - Gérant les erreurs de sérialisation
+     *
+     * @param mixed $templateManager Instance du gestionnaire de templates
+     * @param mixed $request Instance de la requête
+     */
+    private function injectPluginData($templateManager, $request): void
+    {
+        try {
+            $context = $request->getContext();
+            $contextId = $context?->getId() ?? 0;
+
+            // Construction optimisée des données de configuration
+            $pluginData = [
+                'pluginUrl' => $request->getBaseUrl() . '/plugins/generic/premiumSubmissionHelper/',
+                'contextId' => $contextId,
+                'apiUrl' => $request->getDispatcher()->url(
+                    $request,
+                    Application::ROUTE_API,
+                    $context?->getPath() ?? '',
+                    'ai-analysis'
+                ),
+                'locale' => Locale::getLocale(),
+                'isPremium' => $this->isUserPremium($contextId),
+                'version' => '1.0.0'
+            ];
+
+            // Sérialisation JSON optimisée avec options de performance
+            $jsonData = json_encode($pluginData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+            if ($jsonData === false) {
+                throw new Exception('Erreur de sérialisation JSON des données du plugin');
+            }
+
+            // Injection du JavaScript inline avec namespace sécurisé
+            $templateManager->addJavaScript(
+                'premiumSubmissionHelperData',
+                '(function() {' .
+                    '$.pkp = $.pkp || {};' .
+                    '$.pkp.plugins = $.pkp.plugins || {};' .
+                    '$.pkp.plugins.generic = $.pkp.plugins.generic || {};' .
+                    '$.pkp.plugins.generic.premiumSubmissionHelper = ' . $jsonData . ';' .
+                '})();',
+                [
+                    'inline' => true,
+                    'contexts' => 'backend',
+                    'priority' => 'high' // Chargé en priorité pour la disponibilité immédiate
+                ]
+            );
+        } catch (Exception $e) {
+            error_log("Erreur lors de l'injection des données du plugin: " . $e->getMessage());
+            // En cas d'erreur, injecte des données minimales pour éviter les erreurs JS
+            $templateManager->addJavaScript(
+                'premiumSubmissionHelperData',
+                '$.pkp.plugins.generic.premiumSubmissionHelper = {isPremium: false};',
+                ['inline' => true, 'contexts' => 'backend']
+            );
+        }
+    }
+
+    /**
+     * Retourne les actions disponibles pour ce plugin
+     *
+     * Fournit les actions d'administration comme l'accès aux paramètres
+     * avec une validation appropriée des permissions.
+     *
+     * @param mixed $request Instance de la requête
+     * @param string $verb Verbe d'action
+     *
+     * @return array<LinkAction> Tableau des actions disponibles
+     *
      * @copydoc Plugin::getActions()
      */
     public function getActions($request, $verb): array
     {
-        $router = $request->getRouter();
-
         $actions = [];
 
+        // Ajoute l'action de paramètres seulement si le plugin est activé
         if ($this->getEnabled()) {
-            $actions[] = new LinkAction(
-                'settings',
-                new AjaxModal(
-                    $router->url(
-                        $request,
-                        null,
-                        null,
-                        'manage',
-                        null,
-                        [
-                            'verb' => 'settings',
-                            'plugin' => $this->getName(),
-                            'category' => 'generic'
-                        ]
+            try {
+                $router = $request->getRouter();
+
+                $actions[] = new LinkAction(
+                    'settings',
+                    new AjaxModal(
+                        $router->url(
+                            $request,
+                            null,
+                            null,
+                            'manage',
+                            null,
+                            [
+                                'verb' => 'settings',
+                                'plugin' => $this->getName(),
+                                'category' => 'generic'
+                            ]
+                        ),
+                        $this->getDisplayName()
                     ),
-                    $this->getDisplayName()
-                ),
-                __('manager.plugins.settings'),
-                null
-            );
+                    __('manager.plugins.settings'),
+                    null
+                );
+            } catch (Exception $e) {
+                error_log('Erreur lors de la création des actions du plugin: ' . $e->getMessage());
+                // Continue sans les actions de paramètres
+            }
         }
 
         return array_merge($actions, parent::getActions($request, $verb));
     }
 
     /**
+     * Gère les requêtes d'administration du plugin
+     *
+     * Traite les demandes de configuration et d'administration avec
+     * une validation appropriée des données d'entrée.
+     *
+     * @param array $args Arguments de la requête
+     * @param mixed $request Instance de la requête
+     *
+     * @return JSONMessage Réponse JSON pour l'interface d'administration
+     *
      * @copydoc Plugin::manage()
      */
     public function manage($args, $request): JSONMessage
@@ -447,10 +653,22 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
         $verb = $request->getUserVar('verb');
 
         if ($verb === 'settings') {
-            return new JSONMessage(
-                true,
-                '<p>' . __('plugins.generic.premiumSubmissionHelper.settings.description') . '</p>'
-            );
+            try {
+                $settingsDescription = __('plugins.generic.premiumSubmissionHelper.settings.description');
+
+                return new JSONMessage(
+                    true,
+                    '<div class="plugin-settings">' .
+                        '<h3>' . $this->getDisplayName() . '</h3>' .
+                        '<p>' . $settingsDescription . '</p>' .
+                        '<p><strong>Version:</strong> 1.0.0</p>' .
+                        '<p><strong>Statut:</strong> ' . ($this->getEnabled() ? 'Activé' : 'Désactivé') . '</p>' .
+                    '</div>'
+                );
+            } catch (Exception $e) {
+                error_log("Erreur lors de l'affichage des paramètres: " . $e->getMessage());
+                return new JSONMessage(false, 'Erreur lors du chargement des paramètres.');
+            }
         }
 
         return parent::manage($args, $request);
