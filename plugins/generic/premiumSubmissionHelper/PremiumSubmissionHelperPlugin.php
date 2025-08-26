@@ -26,7 +26,6 @@ namespace APP\plugins\generic\premiumSubmissionHelper;
 
 use APP\core\Application;
 use Illuminate\Support\Facades\DB;
-use PKP\core\DAORegistry;
 use PKP\core\JSONMessage;
 use PKP\facades\Locale;
 use PKP\linkAction\LinkAction;
@@ -186,6 +185,9 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
             // Get journal's primary locale
             $primaryLocale = $this->getJournalPrimaryLocale($journalId);
 
+            // Import DAORegistry for OJS legacy class
+            import('lib.pkp.classes.db.DAORegistry');
+
             // Get UserGroup DAO
             $userGroupDao = DAORegistry::getDAO('UserGroupDAO');
             /** @var \PKP\userGroup\UserGroupDAO $userGroupDao */
@@ -201,13 +203,15 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
             $userGroup->setPermitSettings(false);
             $userGroup->setMasthead(false);
 
-            // Set localized names using setData method
+            // Set localized names using setData method (OJS standard)
             $userGroup->setData('name', self::PREMIUM_GROUP_NAME, $primaryLocale);
             $userGroup->setData('abbrev', self::PREMIUM_GROUP_ABBREV, $primaryLocale);
 
             // Insert into database using DAO
             $userGroupDao->insertObject($userGroup);
         } catch (\Exception $e) {
+            // Log the error for debugging
+            error_log('[PremiumSubmissionHelper] Error creating premium group for journal ' . $journalId . ': ' . $e->getMessage());
             // Continue with other journals if one fails
         }
     }
@@ -222,6 +226,12 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
     private function premiumGroupExistsForJournal(int $journalId): bool
     {
         try {
+            // Get journal's primary locale
+            $primaryLocale = $this->getJournalPrimaryLocale($journalId);
+
+            // Import DAORegistry for OJS legacy class
+            import('lib.pkp.classes.db.DAORegistry');
+
             // Get UserGroup DAO
             $userGroupDao = DAORegistry::getDAO('UserGroupDAO');
             /** @var \PKP\userGroup\UserGroupDAO $userGroupDao */
@@ -231,7 +241,7 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
 
             // Check if any group has the Premium name
             foreach ($userGroups as $userGroup) {
-                if ($userGroup->getLocalizedData('name') === self::PREMIUM_GROUP_NAME) {
+                if ($userGroup->getData('name', $primaryLocale) === self::PREMIUM_GROUP_NAME) {
                     return true;
                 }
             }
@@ -243,18 +253,23 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
     }
 
     /**
-     * Get primary locale for a journal
+     * Get primary locale for a journal or context
      *
-     * @param int $journalId The journal ID
+     * @param int $contextId The context ID (journal ID or 0 for global)
      *
      * @return string The primary locale (falls back to default if not found)
      */
-    private function getJournalPrimaryLocale(int $journalId): string
+    private function getJournalPrimaryLocale(int $contextId): string
     {
         try {
+            // For global context (0), return default locale
+            if ($contextId === 0) {
+                return self::DEFAULT_LOCALE;
+            }
+
             // Use database query to get primary locale directly
             $primaryLocale = DB::table('journal_settings')
-                ->where('journal_id', $journalId)
+                ->where('journal_id', $contextId)
                 ->where('setting_name', 'primaryLocale')
                 ->value('setting_value');
 
@@ -283,6 +298,9 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
         try {
             $userId = $user->getId();
 
+            // Import DAORegistry for OJS legacy class
+            import('lib.pkp.classes.db.DAORegistry');
+
             // Get UserGroup DAO
             $userGroupDao = DAORegistry::getDAO('UserGroupDAO');
             /** @var \PKP\userGroup\UserGroupDAO $userGroupDao */
@@ -292,7 +310,9 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
 
             // Convert DAOResultFactory to array and check for Premium group
             foreach ($userGroups as $userGroup) {
-                if ($userGroup->getLocalizedData('name') === self::PREMIUM_GROUP_NAME) {
+                // Get the primary locale for this context
+                $contextPrimaryLocale = $this->getJournalPrimaryLocale($contextId);
+                if ($userGroup->getData('name', $contextPrimaryLocale) === self::PREMIUM_GROUP_NAME) {
                     return true;
                 }
             }
