@@ -27,7 +27,6 @@ namespace APP\plugins\generic\premiumSubmissionHelper;
 use APP\core\Application;
 use APP\journal\Journal;
 use Illuminate\Support\Facades\DB;
-use PKP\core\DAORegistry;
 use PKP\core\JSONMessage;
 use PKP\facades\Locale;
 use PKP\linkAction\LinkAction;
@@ -241,10 +240,13 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
     private function getJournalPrimaryLocale(int $journalId): string
     {
         try {
-            $journalDao = DAORegistry::getDAO('JournalDAO');
-            $journal = $journalDao->getById($journalId);
+            // Use database query to get primary locale directly
+            $primaryLocale = DB::table('journal_settings')
+                ->where('journal_id', $journalId)
+                ->where('setting_name', 'primaryLocale')
+                ->value('setting_value');
 
-            return $journal?->getPrimaryLocale() ?? self::DEFAULT_LOCALE;
+            return $primaryLocale ?: self::DEFAULT_LOCALE;
         } catch (\Exception $e) {
             return self::DEFAULT_LOCALE;
         }
