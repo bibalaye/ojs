@@ -4,79 +4,92 @@
  * @file plugins/generic/premiumSubmissionHelper/PremiumSubmissionHelperPlugin.php
  *
  * Copyright (c) 2025 Premium Submission Helper Plugin
- * Distribué sous la licence GNU GPL v3. Pour les conditions complètes, voir le fichier docs/COPYING.
+ * Distributed under the GNU GPL v3. For full terms see the file docs/COPYING.
  *
  * @class PremiumSubmissionHelperPlugin
  *
  * @ingroup plugins_generic_premiumSubmissionHelper
  *
- * @package plugins_generic_premiumSubmissionHelper
- * @category Generic
+ * @brief Premium Submission Helper Plugin - OJS Plugin with Santaane AI Integration
  *
- * @author Premium Submission Helper Plugin
- * @license GNU GPL v3
+ * This plugin provides premium features for article submission including AI-powered
+ * analysis integration with Santaane platform for premium users during the submission workflow.
  *
- * @link https://github.com/premium-submission-helper
- *
- * @brief Plugin OJS avec intégration de l'analyse IA Santaane
+ * Key Features:
+ * - Automatic creation of Premium user groups
+ * - Premium user detection and validation
+ * - Integration hooks for submission workflow enhancement
+ * - CSS and JavaScript injection for premium UI features
  */
-
-// Ce fichier ne doit déclarer que des symboles (classes, fonctions, constantes, etc.)
-// et ne doit pas exécuter de logique ayant des effets de bord.
-// Toute logique avec effet de bord doit être déplacée dans un autre fichier (ex : index.php).
 
 namespace APP\plugins\generic\premiumSubmissionHelper;
 
 use APP\core\Application;
+use APP\journal\Journal;
+use Illuminate\Support\Facades\DB;
+use PKP\core\DAORegistry;
 use PKP\core\JSONMessage;
-use PKP\db\DAORegistry;
 use PKP\facades\Locale;
 use PKP\linkAction\LinkAction;
 use PKP\linkAction\request\AjaxModal;
 use PKP\plugins\GenericPlugin;
 use PKP\plugins\Hook;
 use PKP\security\Role;
-use PKP\site\SiteDAO;
-use PKP\user\Group\Group;
+use PKP\userGroup\UserGroup;
 
 /**
- * PremiumSubmissionHelperPlugin class
+ * Premium Submission Helper Plugin Class
  *
- * Plugin OJS qui ajoute des fonctionnalités d'analyse IA Santaane
- * pour les utilisateurs premium lors de la soumission d'articles.
+ * Provides enhanced submission workflow features for premium users including
+ * AI analysis integration and advanced submission tools.
  */
 class PremiumSubmissionHelperPlugin extends GenericPlugin
 {
+    /** @var string Premium user group name */
+    private const PREMIUM_GROUP_NAME = 'Premium';
+
+    /** @var string Premium user group abbreviation */
+    private const PREMIUM_GROUP_ABBREV = 'VIP';
+
+    /** @var string Default locale for user groups */
+    private const DEFAULT_LOCALE = 'en';
+
     /**
      * @copydoc Plugin::register()
      *
-     * @param string $category The category name
-     * @param string $path The plugin path
-     * @param null|mixed $mainContextId The main context ID
-     *
-     * @return bool
+     * @param null|mixed $mainContextId
      */
-    public function register($category, $path, $mainContextId = null)
+    public function register($category, $path, $mainContextId = null): bool
     {
         $success = parent::register($category, $path, $mainContextId);
+
         if (Application::isUnderMaintenance()) {
-            return true;
+            return $success;
         }
 
         if ($success && $this->getEnabled($mainContextId)) {
-            // Register template display hook for general injection
-            Hook::add('TemplateManager::display', [$this, 'handleTemplateDisplay']);
-
-            // Initialize premium roles if they don't exist
-            $this->initializePremiumRoles($mainContextId);
+            $this->initializePlugin();
         }
 
         return $success;
     }
 
     /**
-     * @copydoc Plugin::getInstallSitePluginSettingsFile()
+     * Initialize plugin functionality
      *
+     * Sets up hooks and ensures premium user groups exist.
+     */
+    private function initializePlugin(): void
+    {
+        // Register template display hook for CSS/JS injection
+        Hook::add('TemplateManager::display', [$this, 'handleTemplateDisplay']);
+
+        // Initialize premium roles if they don't exist
+        $this->ensurePremiumGroupsExist();
+    }
+
+    /**
+     * @copydoc Plugin::getInstallSitePluginSettingsFile()
      */
     public function getInstallSitePluginSettingsFile(): string
     {
@@ -85,339 +98,166 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
 
     /**
      * @copydoc Plugin::getDisplayName()
-     *
-     * @return string
      */
-    public function getDisplayName()
+    public function getDisplayName(): string
     {
         return __('plugins.generic.premiumSubmissionHelper.displayName');
     }
 
     /**
      * @copydoc Plugin::getDescription()
-     *
-     * @return string
      */
-    public function getDescription()
+    public function getDescription(): string
     {
         return __('plugins.generic.premiumSubmissionHelper.description');
     }
 
     /**
-     * Initialize premium roles when the plugin is enabled
+     * Ensure premium user groups exist across all journals
      *
-     * @param int|null $contextId The context ID
-     *
+     * Creates Premium user groups for all existing journals if they don't already exist.
+     * This ensures consistent premium functionality across the entire OJS installation.
      */
-    private function initializePremiumRoles($contextId = null)
+    private function ensurePremiumGroupsExist(): void
     {
         try {
-            // Check if premium groups already exist using DAO
-            $groupDao = DAORegistry::getDAO('GroupDAO');
-            $existingGroups = $groupDao->getGroupsBySetting('premiumGroupType', 'Premium', $contextId);
+            // Check if any premium groups already exist
+            $existingPremiumCount = $this->countExistingPremiumGroups();
 
-            if (empty($existingGroups)) {
-                // Create premium groups automatically
-                $this->createPremiumRoles();
-
-                // Log success
-                error_log('[PremiumSubmissionHelper] Premium groups created successfully during plugin activation');
+            if ($existingPremiumCount > 0) {
+                return; // Premium groups already exist
             }
+
+            // Create premium groups for all journals
+            $this->createPremiumGroupsForAllJournals();
         } catch (\Exception $e) {
-            // Log error but don't break plugin functionality
-            error_log('[PremiumSubmissionHelper] Error creating premium groups: ' . $e->getMessage());
+            // Fail silently in production - premium features will be disabled
+            // In a real implementation, this could be logged to a proper logging system
         }
     }
 
     /**
-     * Create premium roles in the database
-     *
+     * Count existing premium groups across all contexts
      */
-    private function createPremiumRoles()
+    private function countExistingPremiumGroups(): int
     {
-        // Get installed contexts (journals) using DAO
-        $contextDao = DAORegistry::getDAO('ContextDAO');
-        $contexts = $contextDao->getAll();
-
-
-        // Get installed locales using SiteDAO
-        $siteDao = DAORegistry::getDAO('SiteDAO');
-        $site = $siteDao->getSite();
-        $installedLocales = $site->getInstalledLocales();
-
-        // Create premium roles for each context
-        while ($context = $contexts->next()) {
-            $this->createPremiumRolesForContext($context->getId(), $context->getPrimaryLocale(), $installedLocales);
-        }
-
-        // Create premium roles at site level (global context)
-        $this->createPremiumRolesForContext(0, 'en_US', $installedLocales);
+        return DB::table('user_group_settings')
+            ->where('setting_name', 'name')
+            ->where('setting_value', self::PREMIUM_GROUP_NAME)
+            ->count();
     }
 
     /**
-     * Create premium roles for a specific context
+     * Create premium user groups for all existing journals
      *
-     * @param int    $contextId        The context ID (0 for site)
-     * @param string $primaryLocale    The primary locale
-     * @param array  $installedLocales Installed locales
-     *
+     * Iterates through all journals and creates a Premium user group for each,
+     * ensuring proper foreign key constraints are respected.
      */
-    private function createPremiumRolesForContext(int $contextId, string $primaryLocale, array $installedLocales)
+    private function createPremiumGroupsForAllJournals(): void
     {
-        // Only create ONE Premium role (not VIP, Advanced, Elite)
-        $premiumRoleConfigs = [
-            'Premium' => [
-                'role_id' => Role::ROLE_ID_AUTHOR, // Use existing AUTHOR role
-                'name' => 'Premium',
-                'abbrev' => 'PRM',
-                'description' => 'Auteur Premium avec accès à l\'analyse IA'
-            ]
-        ];
+        $journalIds = $this->getExistingJournalIds();
 
-        $groupDao = DAORegistry::getDAO('GroupDAO');
-
-        foreach ($premiumRoleConfigs as $roleKey => $roleInfo) {
-            // Check if premium group already exists for this context
-            $existingGroups = $groupDao->getGroupsBySetting('premiumGroupType', $roleKey, $contextId);
-
-            if (empty($existingGroups)) {
-                // Create user group using existing OJS role
-                $group = new Group();
-                $group->setContextId($contextId);
-                $group->setRoleId($roleInfo['role_id']); // Use existing OJS role
-                $group->setDefault(false);
-                $group->setShowTitle(true);
-                $group->setPermitSelfRegistration(false);
-                $group->setPermitMetadataEdit(true);
-                $group->setPermitSettings(false);
-                $group->setMasthead(false);
-
-                $userGroupId = $groupDao->insertGroup($group);
-
-                // Add user group settings
-                $this->addUserGroupSettings($userGroupId, $roleInfo, $primaryLocale, $installedLocales);
-
-                // Add author permissions for premium roles
-                $this->addAuthorPermissions($userGroupId, $contextId);
-
-                // Mark this as a premium group using updateSetting
-                $groupDao->updateSetting($userGroupId, 'premiumGroupType', $roleKey, 'string');
-            }
+        foreach ($journalIds as $journalId) {
+            $this->createPremiumGroupForJournal($journalId);
         }
     }
 
     /**
-     * Add settings for user group
+     * Get all existing journal IDs
      *
-     * @param int    $userGroupId      The user group ID
-     * @param array  $roleInfo         Role information
-     * @param string $primaryLocale    Primary locale
-     * @param array  $installedLocales Installed locales
-     *
+     * @return array<int> Array of journal IDs
      */
-    private function addUserGroupSettings(
-        int $userGroupId,
-        array $roleInfo,
-        string $primaryLocale,
-        array $installedLocales
-    ) {
-        $groupDao = DAORegistry::getDAO('GroupDAO');
+    private function getExistingJournalIds(): array
+    {
+        return DB::table('journals')->pluck('journal_id')->toArray();
+    }
 
-        // Add localization keys
-        $groupDao->updateSetting(
-            $userGroupId,
-            'nameLocaleKey',
-            'user.role.' .
-            strtolower($roleInfo['name']),
-            'string'
-        );
-        $groupDao->updateSetting(
-            $userGroupId,
-            'abbrevLocaleKey',
-            'user.role.abbrev.' .
-            strtolower($roleInfo['name']),
-            'string'
-        );
-
-        // Add translations for each locale
-        foreach ($installedLocales as $locale) {
-            // Role name
-            $translatedName = $this->getTranslatedRoleName(
-                $roleInfo['name'],
-                $locale,
-                $primaryLocale
-            );
-            if ($translatedName) {
-                $groupDao->updateSetting($userGroupId, 'name', $translatedName, 'string', $locale);
+    /**
+     * Create premium user group for a specific journal
+     *
+     * @param int $journalId The journal ID to create the premium group for
+     */
+    private function createPremiumGroupForJournal(int $journalId): void
+    {
+        try {
+            // Check if premium group already exists for this journal
+            if ($this->premiumGroupExistsForJournal($journalId)) {
+                return;
             }
 
-            // Role abbreviation
-            $translatedAbbrev = $this->getTranslatedRoleAbbrev(
-                $roleInfo['abbrev'],
-                $locale,
-                $primaryLocale
-            );
-            if ($translatedAbbrev) {
-                $groupDao->updateSetting($userGroupId, 'abbrev', $translatedAbbrev, 'string', $locale);
-            }
+            // Get journal's primary locale
+            $primaryLocale = $this->getJournalPrimaryLocale($journalId);
+
+            // Create the premium user group
+            $userGroup = new UserGroup([
+                'contextId' => $journalId,
+                'roleId' => Role::ROLE_ID_AUTHOR,
+                'isDefault' => false,
+                'showTitle' => true,
+                'permitSelfRegistration' => false,
+                'permitMetadataEdit' => true,
+                'permitSettings' => false,
+                'masthead' => false,
+            ]);
+
+            // Set localized names
+            $userGroup->name = [$primaryLocale => self::PREMIUM_GROUP_NAME];
+            $userGroup->abbrev = [$primaryLocale => self::PREMIUM_GROUP_ABBREV];
+
+            // Save to database
+            $userGroup->save();
+        } catch (\Exception $e) {
+            // Continue with other journals if one fails
         }
     }
 
     /**
-     * Add author permissions to a user group
+     * Check if premium group exists for a specific journal
      *
-     * @param int $userGroupId The user group ID
-     * @param int $contextId   The context ID
+     * @param int $journalId The journal ID to check
      *
+     * @return bool True if premium group exists, false otherwise
      */
-    private function addAuthorPermissions(int $userGroupId, int $contextId): void
+    private function premiumGroupExistsForJournal(int $journalId): bool
     {
-        $groupDao = DAORegistry::getDAO('GroupDAO');
+        $groupId = DB::table('user_groups')
+            ->join('user_group_settings', 'user_groups.user_group_id', '=', 'user_group_settings.user_group_id')
+            ->where('user_groups.context_id', $journalId)
+            ->where('user_groups.role_id', Role::ROLE_ID_AUTHOR)
+            ->where('user_group_settings.setting_name', 'name')
+            ->where('user_group_settings.setting_value', self::PREMIUM_GROUP_NAME)
+            ->value('user_groups.user_group_id');
 
-        // Define author permissions for premium users
-        $authorPermissions = [
-            // Permissions de base d'auteur
-            'canSubmit' => true,           // Peut soumettre des articles
-            'canEdit' => true,             // Peut éditer ses articles
-            'canReview' => true,           // Peut faire des revues
-            'canPublish' => false,         // Ne peut pas publier directement
-            'canDelete' => false,          // Ne peut pas supprimer
-            'canManage' => false,          // Ne peut pas gérer
-
-            // Permissions de consultation
-            'canView' => true,             // Peut voir les articles
-            'canComment' => true,          // Peut commenter
-            'canRate' => true,             // Peut évaluer
-            'canBookmark' => true,         // Peut marquer des articles
-            'canShare' => true,            // Peut partager
-
-            // Permissions d'export et d'impression
-            'canExport' => true,           // Peut exporter
-            'canPrint' => true,            // Peut imprimer
-            'canEmail' => true,            // Peut envoyer par email
-            'canDownload' => true,         // Peut télécharger
-
-            // Permissions d'historique et de suivi
-            'canViewHistory' => true,      // Peut voir l'historique
-            'canViewNotes' => true,        // Peut voir les notes
-            'canViewReviews' => true,      // Peut voir les revues
-            'canViewComments' => true,     // Peut voir les commentaires
-            'canViewRatings' => true,      // Peut voir les évaluations
-            'canViewBookmarks' => true,    // Peut voir ses marque-pages
-            'canViewShares' => true,       // Peut voir ses partages
-            'canViewExports' => true,      // Peut voir ses exports
-            'canViewPrints' => true,       // Peut voir ses impressions
-            'canViewEmails' => true,       // Peut voir ses emails
-            'canViewDownloads' => true,    // Peut voir ses téléchargements
-
-            // Permissions premium spécifiques
-            'canUseAI' => true,            // Peut utiliser l'analyse IA
-            'canAccessPremium' => true,    // Accès aux fonctionnalités premium
-            'canViewAnalytics' => true,    // Peut voir les analyses
-            'canUseAdvancedFeatures' => true, // Peut utiliser les fonctionnalités avancées
-        ];
-
-        // Add author permissions to user group settings using updateSetting
-        $groupDao->updateSetting($userGroupId, 'authorPermissions', json_encode($authorPermissions), 'string');
-
-        // Add specific role permissions for premium access
-        $groupDao->updateSetting($userGroupId, 'premiumPermissions', json_encode([
-            'aiAnalysis' => true,      // Accès à l'analyse IA
-            'premiumFeatures' => true, // Accès aux fonctionnalités premium
-            'advancedTools' => true,   // Accès aux outils avancés
-            'prioritySupport' => true, // Support prioritaire
-            'extendedStorage' => true, // Stockage étendu
-            'customBranding' => true,  // Personnalisation de la marque
-        ]), 'string');
+        return $groupId !== null;
     }
 
     /**
-     * Get translated role name
+     * Get primary locale for a journal
      *
-     * @param string $roleName      Role name in English
-     * @param string $locale        Target locale
-     * @param string $primaryLocale Primary locale
+     * @param int $journalId The journal ID
      *
-     * @return string|null Translated name or null if no translation
+     * @return string The primary locale (falls back to default if not found)
      */
-    private function getTranslatedRoleName(
-        string $roleName,
-        string $locale,
-        string $primaryLocale
-    ): ?string {
-        // French translations
-        $frenchTranslations = [
-            'Premium' => 'Premium'
-        ];
+    private function getJournalPrimaryLocale(int $journalId): string
+    {
+        try {
+            $journalDao = DAORegistry::getDAO('JournalDAO');
+            $journal = $journalDao->getById($journalId);
 
-        // Spanish translations
-        $spanishTranslations = [
-            'Premium' => 'Premium'
-        ];
-
-        // German translations
-        $germanTranslations = [
-            'Premium' => 'Premium'
-        ];
-
-        $translations = [
-            'fr' => $frenchTranslations,
-            'es' => $spanishTranslations,
-            'de' => $germanTranslations
-        ];
-
-        $localePrefix = substr($locale, 0, 2);
-
-        if (
-            isset($translations[$localePrefix])
-            && isset($translations[$localePrefix][$roleName])
-        ) {
-            return $translations[$localePrefix][$roleName];
+            return $journal?->getPrimaryLocale() ?? self::DEFAULT_LOCALE;
+        } catch (\Exception $e) {
+            return self::DEFAULT_LOCALE;
         }
-
-        // Return original name if no translation
-        return $roleName;
     }
 
     /**
-     * Get translated role abbreviation
+     * Check if the current user has Premium access for a given context
      *
-     * @param string $roleAbbrev    Role abbreviation in English
-     * @param string $locale        Target locale
-     * @param string $primaryLocale Primary locale
-     *
-     * @return string|null Translated abbreviation or null if no translation
-     */
-    private function getTranslatedRoleAbbrev(
-        string $roleAbbrev,
-        string $locale,
-        string $primaryLocale
-    ): ?string {
-        // Abbreviation translations
-        $abbrevTranslations = [
-            'PRM' => 'PRM'
-        ];
-
-        $localePrefix = substr($locale, 0, 2);
-
-        if ($localePrefix === 'fr' && isset($abbrevTranslations[$roleAbbrev])) {
-            return $abbrevTranslations[$roleAbbrev];
-        }
-
-        // Return original abbreviation for other languages
-        return $roleAbbrev;
-    }
-
-    /**
-     * Check if the current user has Premium access
-     *
-     * Ultra-simple method: just check if user is in Premium group
-     *
-     * @param int $contextId The context ID to check roles in
+     * @param int $contextId The context ID to check premium access for
      *
      * @return bool True if user has premium access, false otherwise
      */
-    private function isUserPremium($contextId): bool
+    private function isUserPremium(int $contextId): bool
     {
         $request = Application::get()->getRequest();
         $user = $request->getUser();
@@ -426,161 +266,173 @@ class PremiumSubmissionHelperPlugin extends GenericPlugin
             return false;
         }
 
-        // Ultra-simple: just check if user is in Premium group using DAO
         try {
             $userId = $user->getId();
-            $groupDao = DAORegistry::getDAO('GroupDAO');
 
-            // Get premium groups for this context
-            $premiumGroups = $groupDao->getGroupsBySetting('premiumGroupType', 'Premium', $contextId);
-
-            if (empty($premiumGroups)) {
-                return false;
-            }
-
-            // Check if user is in any of the premium groups
-            foreach ($premiumGroups as $group) {
-                if ($groupDao->userInGroup($userId, $group->getId())) {
-                    return true;
-                }
-            }
-
-            return false;
+            // Check if user is assigned to a Premium group in the given context
+            return DB::table('user_groups')
+                ->join('user_group_settings', 'user_groups.user_group_id', '=', 'user_group_settings.user_group_id')
+                ->join('user_user_groups', 'user_groups.user_group_id', '=', 'user_user_groups.user_group_id')
+                ->where('user_groups.context_id', $contextId)
+                ->where('user_group_settings.setting_name', 'name')
+                ->where('user_group_settings.setting_value', self::PREMIUM_GROUP_NAME)
+                ->where('user_user_groups.user_id', $userId)
+                ->exists();
         } catch (\Exception $e) {
-            error_log('[PremiumSubmissionHelper] Error: ' . $e->getMessage());
             return false;
         }
     }
 
     /**
-     * Handle template display hook for injecting CSS and JS
+     * Handle template display hook for injecting CSS and JavaScript
+     *
+     * Injects premium submission helper assets into submission workflow pages
+     * and provides premium status information to the frontend.
      *
      * @param string $hookName The hook name
-     * @param array  $args     The hook arguments
+     * @param array $args The hook arguments
      *
+     * @return bool Always returns false to allow other plugins to process
      */
-    public function handleTemplateDisplay(
-        string $hookName,
-        array $args
-    ): bool {
+    public function handleTemplateDisplay(string $hookName, array $args): bool
+    {
         $request = Application::get()->getRequest();
         $templateManager = $args[0];
-
-        // Only inject on submission wizard pages
         $requestPath = $request->getRequestPath();
-        if (strpos($requestPath, 'submission') === false) {
+
+        // Only inject on submission workflow pages
+        if (!$this->isSubmissionWorkflowPage($requestPath)) {
             return false;
         }
 
-        // Add CSS file
-        $templateManager->addStyleSheet(
-            'premiumSubmissionHelper',
-            $request->getBaseUrl() . '/plugins/generic/premiumSubmissionHelper/css/premiumSubmissionHelper.css',
-            [
-                'contexts' => 'backend',
-            ]
-        );
-
-        // Add JavaScript file
-        $templateManager->addJavaScript(
-            'premiumSubmissionHelper',
-            $request->getBaseUrl() . '/plugins/generic/premiumSubmissionHelper/js/premiumSubmissionHelper.js',
-            [
-                'contexts' => 'backend',
-            ]
-        );
-
-        // Add plugin data for JavaScript
-        $context = $request->getContext();
-        $contextId = $context ? $context->getId() : 0;
-
-        // Check if user is premium using the proper OJS method
-        $isPremium = $this->isUserPremium($contextId);
-
-        $data = [
-            'pluginUrl' => $request->getBaseUrl() . '/plugins/generic/premiumSubmissionHelper/',
-            'contextId' => $contextId,
-            'apiUrl' => $request->getDispatcher()->url(
-                $request,
-                Application::ROUTE_API,
-                $context->getPath(),
-                'ai-analysis'
-            ),
-            'locale' => Locale::getLocale(),
-            'isPremium' => $isPremium,
-        ];
-
-        $templateManager->addJavaScript(
-            'premiumSubmissionHelperData',
-            '$.pkp.plugins.generic = $.pkp.plugins.generic || {};' .
-                '$.pkp.plugins.generic.premiumSubmissionHelper = ' . json_encode($data) . ';',
-            [
-                'inline' => true,
-                'contexts' => 'backend',
-            ]
-        );
+        $this->injectAssets($templateManager, $request);
+        $this->injectPluginData($templateManager, $request);
 
         return false;
     }
 
     /**
-     * @copydoc Plugin::getActions()
+     * Check if current page is part of submission workflow
      *
-     * @param mixed $request The request object
-     * @param mixed $verb    The verb
+     * @param string $requestPath Current request path
      *
+     * @return bool True if this is a submission workflow page
      */
-    public function getActions(
-        $request,
-        $verb
-    ): array {
-        $router = $request->getRouter();
-        return array_merge(
-            $this->getEnabled() ? [
-                new LinkAction(
-                    'settings',
-                    new AjaxModal(
-                        $router->url(
-                            $request,
-                            null,
-                            null,
-                            'manage',
-                            null,
-                            [
-                                'verb' => 'settings',
-                                'plugin' => $this->getName(),
-                                'category' => 'generic'
-                            ]
-                        ),
-                        $this->getDisplayName()
-                    ),
-                    __('manager.plugins.settings'),
-                    null
-                ),
-            ] : [],
-            parent::getActions($request, $verb)
+    private function isSubmissionWorkflowPage(string $requestPath): bool
+    {
+        return strpos($requestPath, 'submission') !== false;
+    }
+
+    /**
+     * Inject CSS and JavaScript assets
+     *
+     * @param object $templateManager Template manager instance
+     * @param object $request Request instance
+     */
+    private function injectAssets($templateManager, $request): void
+    {
+        $baseUrl = $request->getBaseUrl();
+        $pluginPath = '/plugins/generic/premiumSubmissionHelper';
+
+        // Add CSS
+        $templateManager->addStyleSheet(
+            'premiumSubmissionHelper',
+            $baseUrl . $pluginPath . '/css/premiumSubmissionHelper.css',
+            ['contexts' => 'backend']
+        );
+
+        // Add JavaScript
+        $templateManager->addJavaScript(
+            'premiumSubmissionHelper',
+            $baseUrl . $pluginPath . '/js/premiumSubmissionHelper.js',
+            ['contexts' => 'backend']
         );
     }
 
     /**
-     * @copydoc Plugin::manage()
+     * Inject plugin configuration data for JavaScript
      *
-     * @param mixed $args    The arguments
-     * @param mixed $request The request object
-     *
+     * @param object $templateManager Template manager instance
+     * @param object $request Request instance
      */
-    public function manage(
-        $args,
-        $request
-    ) {
-        switch ($request->getUserVar('verb')) {
-            case 'settings':
-                return new JSONMessage(
-                    true,
-                    '<p>' . __('plugins.generic.premiumSubmissionHelper.settings.description')
-                        . '</p>'
-                );
+    private function injectPluginData($templateManager, $request): void
+    {
+        $context = $request->getContext();
+        $contextId = $context?->getId() ?? 0;
+
+        $pluginData = [
+            'pluginUrl' => $request->getBaseUrl() . '/plugins/generic/premiumSubmissionHelper/',
+            'contextId' => $contextId,
+            'apiUrl' => $request->getDispatcher()->url(
+                $request,
+                Application::ROUTE_API,
+                $context?->getPath() ?? '',
+                'ai-analysis'
+            ),
+            'locale' => Locale::getLocale(),
+            'isPremium' => $this->isUserPremium($contextId),
+        ];
+
+        $templateManager->addJavaScript(
+            'premiumSubmissionHelperData',
+            '$.pkp.plugins.generic = $.pkp.plugins.generic || {};' .
+                '$.pkp.plugins.generic.premiumSubmissionHelper = ' . json_encode($pluginData) . ';',
+            [
+                'inline' => true,
+                'contexts' => 'backend',
+            ]
+        );
+    }
+
+    /**
+     * @copydoc Plugin::getActions()
+     */
+    public function getActions($request, $verb): array
+    {
+        $router = $request->getRouter();
+
+        $actions = [];
+
+        if ($this->getEnabled()) {
+            $actions[] = new LinkAction(
+                'settings',
+                new AjaxModal(
+                    $router->url(
+                        $request,
+                        null,
+                        null,
+                        'manage',
+                        null,
+                        [
+                            'verb' => 'settings',
+                            'plugin' => $this->getName(),
+                            'category' => 'generic'
+                        ]
+                    ),
+                    $this->getDisplayName()
+                ),
+                __('manager.plugins.settings'),
+                null
+            );
         }
+
+        return array_merge($actions, parent::getActions($request, $verb));
+    }
+
+    /**
+     * @copydoc Plugin::manage()
+     */
+    public function manage($args, $request): JSONMessage
+    {
+        $verb = $request->getUserVar('verb');
+
+        if ($verb === 'settings') {
+            return new JSONMessage(
+                true,
+                '<p>' . __('plugins.generic.premiumSubmissionHelper.settings.description') . '</p>'
+            );
+        }
+
         return parent::manage($args, $request);
     }
 }
